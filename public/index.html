@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Clear Day — Urban Air Quality Assistant</title>
+  <meta name="description" content="GenAI-powered daily air plan for smog season. Get low-emission routines, indoor air hacks and sustainable swaps tailored to your family and location.">
+  <meta property="og:title" content="Clear Day — Urban Air Quality Assistant">
+  <meta property="og:description" content="Live AQI, hourly PM2.5 forecast, and a personalised smog-safe daily plan for your family.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2322C55E'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23131209'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#plan">Skip to the planner</a>
+
+  <!-- ── Top nav ──────────────────────────────────────────────── -->
+  <header class="nav" role="banner">
+    <div class="nav-brand">
+      <svg class="nav-icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10" fill="#22C55E" opacity=".2"/>
+        <circle cx="12" cy="12" r="6"  fill="#22C55E" opacity=".5"/>
+        <circle cx="12" cy="12" r="3"  fill="#22C55E"/>
+      </svg>
+      <span class="title-3">Clear Day</span>
+    </div>
+    <nav aria-label="Quick links">
+      <a class="btn btn-sm" href="#plan">Get my air plan</a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+
+    <!-- ── Hero ─────────────────────────────────────────────────── -->
+    <section class="hero container" aria-labelledby="hero-h">
+      <div class="hero-badge caption-1">
+        <span class="dot" aria-hidden="true"></span>
+        Live air quality &middot; Powered by Open Meteo &amp; Gemini
+      </div>
+      <h1 id="hero-h" class="heading-1 grad">Breathe smarter<br>every smog day</h1>
+      <p class="body-6 muted narrow">Your personalised daily plan — low-emission routines, indoor air hacks and sustainable swaps — built from live AQI data and adapted to your family and location.</p>
+      <div class="hero-actions">
+        <a class="btn btn-md" href="#plan">Get my free air plan</a>
+        <a class="btn btn-ghost btn-md" href="#how">How it works</a>
+      </div>
+      <p class="caption-2 muted">No account needed. Your profile stays in your browser.</p>
+    </section>
+
+    <!-- ── Stats strip ───────────────────────────────────────────── -->
+    <section class="stats-strip container" aria-label="Key facts">
+      <div class="stats-grid">
+        <div class="stat-item rv">
+          <span class="stat-num heading-3">6</span>
+          <span class="caption-2 muted">AQI health levels tracked</span>
+        </div>
+        <div class="stat-item rv">
+          <span class="stat-num heading-3">24 h</span>
+          <span class="caption-2 muted">Hourly PM2.5 forecast</span>
+        </div>
+        <div class="stat-item rv">
+          <span class="stat-num heading-3">0</span>
+          <span class="caption-2 muted">Data stored on our servers</span>
+        </div>
+        <div class="stat-item rv">
+          <span class="stat-num heading-3">AI</span>
+          <span class="caption-2 muted">Safety-gated by fixed rules</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Tagline ────────────────────────────────────────────────── -->
+    <section class="section container">
+      <p id="tagline" class="heading-3 tag">Clean air is a daily decision. We turn today's reading into the next few things to do, and show what each one is worth.</p>
+    </section>
+
+    <!-- ── Feature cards ─────────────────────────────────────────── -->
+    <section class="section container" aria-labelledby="why">
+      <h2 id="why" class="heading-2 rv">Built around your day,<br class="d-none-sm"> not a generic checklist</h2>
+      <div class="grid3">
+        <article class="card feature-card rv">
+          <div class="feature-icon" aria-hidden="true">🏠</div>
+          <h3 class="heading-5">Advice that fits your life</h3>
+          <p class="body-3 muted">Your commute mode, kitchen fuel and household vulnerabilities shape the plan — a family with a newborn gets different advice from a solo remote worker.</p>
+        </article>
+        <article class="card feature-card rv">
+          <div class="feature-icon" aria-hidden="true">🛡️</div>
+          <h3 class="heading-5">Safety limits the AI cannot cross</h3>
+          <p class="body-3 muted">Deterministic health rules set hard boundaries first. If the AI output violates any rule — like recommending outdoor running above AQI 150 — the plan is replaced.</p>
+        </article>
+        <article class="card feature-card rv">
+          <div class="feature-icon" aria-hidden="true">📊</div>
+          <h3 class="heading-5">Every tip shows its worth</h3>
+          <p class="body-3 muted">CO₂ saved, PM2.5 exposure cut and cigarette-equivalent values are computed in code from verified emission factors — never invented by the AI.</p>
+        </article>
+        <article class="card feature-card rv">
+          <div class="feature-icon" aria-hidden="true">🔍</div>
+          <h3 class="heading-5">Cleanest window detection</h3>
+          <p class="body-3 muted">We scan the 24-hour PM2.5 forecast to find the optimal 2-hour outdoor window based on diurnal inversion cycles, then build your schedule around it.</p>
+        </article>
+        <article class="card feature-card rv">
+          <div class="feature-icon" aria-hidden="true">🌿</div>
+          <h3 class="heading-5">Green commute calculator</h3>
+          <p class="body-3 muted">See exactly how many kilograms of CO₂ you would save per day and week by switching from your current commute to a lower-emission alternative.</p>
+        </article>
+        <article class="card feature-card rv">
+          <div class="feature-icon" aria-hidden="true">💬</div>
+          <h3 class="heading-5">Ask anything about today's air</h3>
+          <p class="body-3 muted">Type any question — "Is it safe for my child to play outside?" — and get a contextual answer grounded in your live AQI and household profile.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── How it works ───────────────────────────────────────────── -->
+    <section id="how" class="section container" aria-labelledby="how-h">
+      <h2 id="how-h" class="heading-2 rv">How it works</h2>
+      <ol class="steps-list">
+        <li class="step-item rv">
+          <div class="step-num heading-5" aria-label="Step 1">01</div>
+          <div class="step-body">
+            <h3 class="heading-5">Tell us about your household</h3>
+            <p class="body-3 muted">Enter your city or share your GPS location. Add your commute mode, one-way distance and cooking fuel. Check which household members are sensitive to air pollution.</p>
+          </div>
+        </li>
+        <li class="step-item rv">
+          <div class="step-num heading-5" aria-label="Step 2">02</div>
+          <div class="step-body">
+            <h3 class="heading-5">We fetch live air quality</h3>
+            <p class="body-3 muted">Open Meteo provides current AQI, PM2.5, PM10, NO₂ and O₃ for your coordinates, plus a 48-hour PM2.5 hourly forecast. Deterministic rules then classify the AQI band and find the cleanest 2-hour window.</p>
+          </div>
+        </li>
+        <li class="step-item rv">
+          <div class="step-num heading-5" aria-label="Step 3">03</div>
+          <div class="step-body">
+            <h3 class="heading-5">Safety rules gate the AI</h3>
+            <p class="body-3 muted">Hard safety constraints are built in code — no outdoor exercise above AQI 150, stay indoors above 300, mask and ventilation rules for sensitive households. These are injected into the Gemini prompt and the output is validated against them.</p>
+          </div>
+        </li>
+        <li class="step-item rv">
+          <div class="step-num heading-5" aria-label="Step 4">04</div>
+          <div class="step-body">
+            <h3 class="heading-5">Get your personalised plan</h3>
+            <p class="body-3 muted">Gemini writes a contextual daily routine, indoor air hacks and sustainable alternatives inside the safety limits. Impact numbers (CO₂, exposure, cigarette equivalents) are calculated by code and shown beside each recommendation.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ── PLANNER ──────────────────────────────────────────────── -->
+    <section id="plan" class="section container" aria-labelledby="plan-h">
+      <h2 id="plan-h" class="heading-2 rv">Get my air plan</h2>
+      <div class="plan-grid">
+
+        <!-- Form -->
+        <form id="plan-form" class="card form-card rv" novalidate aria-label="Air plan form">
+          <div class="form-section-label caption-1 muted">Location</div>
+          <div class="field">
+            <label class="title-4" for="city">City name</label>
+            <input id="city" name="city" type="text" maxlength="60" autocomplete="address-level2" placeholder="e.g. Anantapur, Delhi, Mumbai" required>
+            <button id="geo" type="button" class="btn btn-ghost btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+              Use my location
+            </button>
+            <p id="geo-status" class="caption-2 muted" role="status" aria-live="polite"></p>
+          </div>
+
+          <div class="form-section-label caption-1 muted">Household members</div>
+          <fieldset class="field">
+            <legend class="sr-only">Who is at home — select all that apply</legend>
+            <div class="check-grid">
+              <label class="check"><input type="checkbox" name="children"><span class="check-label">🧒 Children</span></label>
+              <label class="check"><input type="checkbox" name="elderly"><span class="check-label">👴 Older adults</span></label>
+              <label class="check"><input type="checkbox" name="asthma"><span class="check-label">🫁 Asthma / lung</span></label>
+              <label class="check"><input type="checkbox" name="pregnancy"><span class="check-label">🤰 Pregnancy</span></label>
+            </div>
+          </fieldset>
+
+          <div class="form-section-label caption-1 muted">Commute</div>
+          <div class="grid2">
+            <div class="field">
+              <label class="title-4" for="commute">Mode</label>
+              <select id="commute" name="commute">
+                <option value="two_wheeler">🛵 Scooter / motorbike</option>
+                <option value="car">🚗 Car</option>
+                <option value="bus">🚌 Bus</option>
+                <option value="metro">🚇 Metro / train</option>
+                <option value="walk_cycle">🚶 Walk or cycle</option>
+                <option value="wfh">🏠 Work from home</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="title-4" for="distanceKm">One-way distance (km)</label>
+              <input id="distanceKm" name="distanceKm" type="number" min="0" max="100" value="8" inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="form-section-label caption-1 muted">Home</div>
+          <div class="field">
+            <label class="title-4" for="cooking">Cooking fuel</label>
+            <select id="cooking" name="cooking">
+              <option value="lpg">🔵 LPG / piped gas</option>
+              <option value="wood">🪵 Wood or biomass</option>
+              <option value="induction">⚡ Induction / electric</option>
+            </select>
+          </div>
+
+          <button id="submit" type="submit" class="btn btn-md submit-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            Get my air plan
+          </button>
+        </form>
+
+        <!-- Results -->
+        <div class="results-col">
+          <div id="result" class="stack" aria-live="polite" aria-atomic="false">
+            <div class="card empty-state">
+              <div class="empty-icon" aria-hidden="true">🌤️</div>
+              <h3 class="heading-5">Your plan will appear here</h3>
+              <p class="body-3 muted">Enter a city or share your location, fill in your profile and tap <strong>Get my air plan</strong>.</p>
+            </div>
+          </div>
+          <form id="ask-form" class="card ask-card" hidden aria-label="Ask a question">
+            <label class="title-4" for="question">Ask about today's air</label>
+            <div class="ask-row">
+              <input id="question" type="text" maxlength="300" placeholder="Is it safe for my child to play outside?" required>
+              <button type="submit" class="btn btn-ghost btn-sm">Ask</button>
+            </div>
+            <div id="answer" class="answer-box" aria-live="polite"></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── AQI Reference ─────────────────────────────────────────── -->
+    <section class="section container" aria-labelledby="aqi-ref-h">
+      <h2 id="aqi-ref-h" class="heading-2 rv">AQI reference guide</h2>
+      <p class="body-3 muted rv narrow">The US AQI scale used by Open Meteo. All recommendations in Clear Day are based on this classification.</p>
+      <div class="aqi-table rv" role="table" aria-label="AQI bands and health implications">
+        <div class="aqi-row aqi-header" role="row">
+          <span role="columnheader">AQI Range</span>
+          <span role="columnheader">Level</span>
+          <span role="columnheader">Who is at risk</span>
+          <span role="columnheader">Recommended action</span>
+        </div>
+        <div class="aqi-row" role="row">
+          <span class="aqi-pill" style="--aqi-bg:#22C55E;--aqi-text:#000" role="cell">0–50</span>
+          <span class="title-4" role="cell">Good</span>
+          <span class="body-3 muted" role="cell">None</span>
+          <span class="body-3 muted" role="cell">Enjoy outdoor activities freely.</span>
+        </div>
+        <div class="aqi-row" role="row">
+          <span class="aqi-pill" style="--aqi-bg:#EAB308;--aqi-text:#000" role="cell">51–100</span>
+          <span class="title-4" role="cell">Moderate</span>
+          <span class="body-3 muted" role="cell">Unusually sensitive people</span>
+          <span class="body-3 muted" role="cell">Consider reducing prolonged outdoor exertion if sensitive.</span>
+        </div>
+        <div class="aqi-row" role="row">
+          <span class="aqi-pill" style="--aqi-bg:#F97316;--aqi-text:#000" role="cell">101–150</span>
+          <span class="title-4" role="cell">Unhealthy for sensitive groups</span>
+          <span class="body-3 muted" role="cell">Children, elderly, asthma, pregnancy</span>
+          <span class="body-3 muted" role="cell">Keep outdoor time short. Wear a mask outdoors.</span>
+        </div>
+        <div class="aqi-row" role="row">
+          <span class="aqi-pill" style="--aqi-bg:#EF4444;--aqi-text:#fff" role="cell">151–200</span>
+          <span class="title-4" role="cell">Unhealthy</span>
+          <span class="body-3 muted" role="cell">Everyone</span>
+          <span class="body-3 muted" role="cell">No outdoor exercise. Sensitive groups stay indoors.</span>
+        </div>
+        <div class="aqi-row" role="row">
+          <span class="aqi-pill" style="--aqi-bg:#A855F7;--aqi-text:#fff" role="cell">201–300</span>
+          <span class="title-4" role="cell">Very Unhealthy</span>
+          <span class="body-3 muted" role="cell">Everyone</span>
+          <span class="body-3 muted" role="cell">Avoid all outdoor activity. Keep windows shut.</span>
+        </div>
+        <div class="aqi-row" role="row">
+          <span class="aqi-pill" style="--aqi-bg:#7F1D1D;--aqi-text:#fff" role="cell">301+</span>
+          <span class="title-4" role="cell">Hazardous</span>
+          <span class="body-3 muted" role="cell">Everyone — emergency level</span>
+          <span class="body-3 muted" role="cell">Stay indoors. Seal gaps. Seek medical advice if symptomatic.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FAQ ───────────────────────────────────────────────────── -->
+    <section class="section container" aria-labelledby="faq">
+      <h2 id="faq" class="heading-2 rv">Questions people ask</h2>
+      <div class="faq rv">
+        <details><summary class="title-3">Where does the air data come from?</summary><p class="body-3 muted">From Open Meteo's air quality service, which uses CAMS European air quality forecast models. Readings are cached on our server for up to ten minutes.</p></details>
+        <details><summary class="title-3">Does the AI decide what is safe?</summary><p class="body-3 muted">No. Fixed rules written in code set all safety limits before the AI sees your request. If the AI output contains any forbidden advice (such as outdoor running above AQI 150), it is replaced with a rule-based fallback plan.</p></details>
+        <details><summary class="title-3">What is the cigarette-equivalent figure?</summary><p class="body-3 muted">Berkeley Air research found that a 22 µg/m³ daily mean PM2.5 exposure is roughly equivalent to smoking one cigarette per day. We use this ratio to make the health cost of today's air tangible and relatable.</p></details>
+        <details><summary class="title-3">What do you store about me?</summary><p class="body-3 muted">Your profile is saved only in your browser's localStorage. It is sent to our server to build your plan but is never persisted there.</p></details>
+        <details><summary class="title-3">How are CO₂ and exposure numbers calculated?</summary><p class="body-3 muted">Our code uses published emission factors (scooter 45 g/km, car 170 g/km, bus 70 g/km, metro 30 g/km) and a simple PM2.5 inhalation exposure model. All assumptions are listed under every plan.</p></details>
+        <details><summary class="title-3">What if the AI service is down?</summary><p class="body-3 muted">You still get a complete plan built entirely from the deterministic safety rules. It is clearly labelled as a rule-based fallback, not AI-generated advice.</p></details>
+        <details><summary class="title-3">Is this medical advice?</summary><p class="body-3 muted">No. Clear Day provides general air quality guidance. If you or a family member have a diagnosed respiratory condition, follow your doctor's advice.</p></details>
+      </div>
+    </section>
+
+    <!-- ── CTA ───────────────────────────────────────────────────── -->
+    <section class="section container final">
+      <h2 class="heading-2 rv">Start with today's air</h2>
+      <a class="btn btn-md rv" href="#plan">Get my air plan</a>
+      <p class="caption-2 muted rv">Free to use. No account needed.</p>
+    </section>
+
+  </main>
+
+  <footer class="container foot" role="contentinfo">
+    <div class="foot-brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10" fill="#22C55E" opacity=".2"/>
+        <circle cx="12" cy="12" r="5"  fill="#22C55E" opacity=".5"/>
+        <circle cx="12" cy="12" r="2"  fill="#22C55E"/>
+      </svg>
+      <span class="title-4">Clear Day</span>
+    </div>
+    <p id="privacy" class="body-2 muted"><strong class="title-4">Privacy.</strong> Your profile is saved only in your browser. Location is used once per request. We store nothing on the server.</p>
+    <p id="terms" class="body-2 muted"><strong class="title-4">Terms.</strong> Clear Day gives general guidance, not medical advice. Impact figures are estimates. Not a substitute for professional health advice.</p>
+    <p class="caption-2 muted">Air data by <a href="https://open-meteo.com" class="foot-link" rel="noopener noreferrer">Open Meteo</a> &middot; AI by <a href="https://ai.google.dev" class="foot-link" rel="noopener noreferrer">Google Gemini</a> &middot; Challenge 6 &mdash; Hack2Skill 2026</p>
+  </footer>
+</body>
+</html>

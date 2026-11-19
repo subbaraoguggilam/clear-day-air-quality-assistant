@@ -1,0 +1,10 @@
+{
+  "name": "clear-day-air-quality-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GenAI assistant for winter smog: rules decide safety, Gemini personalizes, code computes impact.",
+  "scripts": { "start": "node server.js", "test": "node --test" },
+  "engines": { "node": ">=20.12" },
+  "dependencies": { "express": "^4.21.2" }
+}
