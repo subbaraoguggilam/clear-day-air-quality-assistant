@@ -9,6 +9,11 @@ const BANDS = [
   [Infinity, 'hazardous',      'Hazardous',                      '#7F1D1D', '#fff'],
 ];
 
+/**
+ * Classifies an AQI value into standard health bands with color tokens.
+ * @param {number} value - Non-negative AQI value
+ * @returns {{ key: string, label: string, level: number, color: string, textColor: string }}
+ */
 export function classifyAqi(value) {
   if (!Number.isFinite(value) || value < 0) throw new RangeError('AQI must be a non negative number');
   const level = BANDS.findIndex(([max]) => value <= max);
@@ -16,7 +21,14 @@ export function classifyAqi(value) {
   return { key, label, level, color, textColor };
 }
 
-// Lowest two-hour average PM2.5 in the next 24 hours, between 06:00 and 20:00 local time.
+/**
+ * Scans hourly PM2.5 forecasts to find the cleanest consecutive 2-hour daylight window.
+ * @param {string[]} times - Array of ISO time strings
+ * @param {Array<number|null>} pm25 - Array of PM2.5 forecast concentrations
+ * @param {string} nowIso - Current ISO time string
+ * @param {{ from?: number, to?: number }} options - Daylight hour bounds
+ * @returns {{ startHour: number, endHour: number, pm25: number } | null}
+ */
 export function bestWindow(times, pm25, nowIso, { from = 6, to = 20 } = {}) {
   const s = Math.max(times.findIndex((t) => t >= nowIso), 0);
   let best = null;
