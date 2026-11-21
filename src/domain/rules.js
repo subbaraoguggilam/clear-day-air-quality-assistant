@@ -23,6 +23,42 @@ export function forbiddenPattern(aqi) {
   return aqi > 150 ? /\b(jog(ging)?|run(ning)?|cycl(e|ing)|bik(e|ing)|sprint(ing)?)\b/i : null;
 }
 
+// Returns a banner object when AQI is at a level needing urgent action, or null.
+export function getAlertBanner(aqi, sensitive) {
+  if (aqi > 300) return { level: 'emergency', text: 'Hazardous air — stay indoors immediately. Seal doors and windows.', color: '#7F1D1D' };
+  if (aqi > 200) return { level: 'danger',    text: 'Very unhealthy air — avoid all outdoor activity.',              color: '#A855F7' };
+  if (aqi > 150) return { level: 'warning',   text: 'Unhealthy air — no outdoor exercise for anyone.',              color: '#EF4444' };
+  if (aqi > 100 && sensitive) return { level: 'caution', text: 'Sensitive household alert — limit outdoor time.',    color: '#F97316' };
+  return null;
+}
+
+// Returns step-by-step Corsi-Rosenthal box instructions.
+export function getDiyFilterGuide() {
+  return {
+    title: 'DIY Corsi-Rosenthal Box Air Filter',
+    cost: 'Approx ₹800–₹1,500',
+    effectiveness: 'Reduces indoor PM2.5 by up to 70% — comparable to commercial HEPA purifiers costing 10x more.',
+    materials: [
+      '4 × MERV-13 furnace filters (20×20 cm or standard box-fan size)',
+      '1 × box fan (same size as filters)',
+      'Cardboard or duct tape to seal gaps',
+    ],
+    steps: [
+      'Arrange the 4 filters in a square cube, with arrows pointing INWARD on all sides.',
+      'Tape all edges where filters meet to prevent air bypass.',
+      'Place the fan on top pointing UP (blowing air out of the cube).',
+      'Seal any gaps between fan and filters with cardboard and tape.',
+      'Plug in and run on medium speed — place in the most-used room.',
+      'Replace filters when visibly grey or every 3–6 months.',
+    ],
+    tips: [
+      'Run continuously during high AQI days — the filter itself becomes part of the air path.',
+      'A 20×20 cm fan covers a 20–30 m² room effectively.',
+      'Available at hardware stores: Havells, Orient, or similar box fans work well.',
+    ],
+  };
+}
+
 // Used when the LLM is down or its output fails validation.
 export function fallbackAdvice({ aqi, constraints, bestWindow, impact }) {
   const ids = new Set(constraints.map((c) => c.id));

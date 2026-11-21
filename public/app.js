@@ -182,12 +182,25 @@ function buildChart(data, bestStart) {
 
 // ── Main render function ──────────────────────────────────────
 function render(d) {
-  const { air, band, impact, advice, constraints, hourlyChart } = d;
+  const { air, band, impact, advice, constraints, hourlyChart, alertBanner, trend, diyFilter } = d;
   const win = d.bestWindow
     ? `${hh(d.bestWindow.startHour)} to ${hh(d.bestWindow.endHour)}`
     : 'not available today';
 
   const nodes = [];
+
+  // ── 0. Alert banner (hazardous / danger / warning) ───────────
+  if (alertBanner) {
+    const banner = el('div', 'alert-banner');
+    banner.setAttribute('role', 'alert');
+    banner.style.setProperty('--banner-color', alertBanner.color);
+    const icon = el('span', 'alert-icon');
+    icon.textContent = alertBanner.level === 'emergency' ? '🚨' : alertBanner.level === 'danger' ? '⚠️' : '🔶';
+    icon.setAttribute('aria-hidden', 'true');
+    const msg = el('span', 'alert-text'); msg.textContent = alertBanner.text;
+    banner.append(icon, msg);
+    nodes.push(banner);
+  }
 
   // ── 1. AQI hero card ──────────────────────────────────────
   const aqiCard = el('section', 'card aqi-hero-card');
@@ -226,6 +239,19 @@ function render(d) {
     const wb = el('div', 'window-badge');
     wb.innerHTML = `🌿 Cleanest outdoor window: <strong>${win}</strong> (PM2.5 ${d.bestWindow.pm25} µg/m³)`;
     aqiCard.append(wb);
+  }
+
+  // Trend badge
+  if (trend) {
+    const trendBadge = el('div', 'trend-badge');
+    const trendIcon = trend === 'rising' ? '📈' : trend === 'falling' ? '📉' : '➡️';
+    const trendText = trend === 'rising' ? 'PM2.5 rising — plan to stay in soon'
+      : trend === 'falling' ? 'PM2.5 falling — conditions improving'
+      : 'PM2.5 stable';
+    trendBadge.setAttribute('aria-label', `Pollution trend: ${trendText}`);
+    const trendEl = el('span'); trendEl.textContent = `${trendIcon} ${trendText}`;
+    trendBadge.append(trendEl);
+    aqiCard.append(trendBadge);
   }
 
   // PM2.5 chart
@@ -370,6 +396,17 @@ function render(d) {
     impGrid.append(weekCell);
   }
 
+  // Health score
+  if (impact.healthScore != null) {
+    const hsCell = el('div', 'impact-cell');
+    const hsVal  = el('div', impact.healthScore >= 60 ? 'impact-val impact-green' : 'impact-val impact-red');
+    hsVal.textContent = `${impact.healthScore}/100`;
+    const hsLbl = el('div', 'impact-lbl');
+    hsLbl.textContent = 'air health score today — 100 is clean, 0 is hazardous (based on PM2.5)';
+    hsCell.append(hsVal, hsLbl);
+    impGrid.append(hsCell);
+  }
+
   // Assumptions details
   const assump = el('details');
   const assumpS = el('summary', 'title-4'); assumpS.textContent = 'How we calculated this';
@@ -386,13 +423,82 @@ function render(d) {
   impCard.append(impH, impGrid, assump);
   nodes.push(impCard);
 
-  // ── 7. Source & disclaimer ─────────────────────────────────
+  // ── 7. DIY Filter Guide (AQI > 100 only) ──────────────────
+  if (diyFilter) {
+    const diyCard = el('section', 'card');
+    diyCard.setAttribute('aria-label', 'DIY air filter guide');
+    const diyH = el('h3', 'heading-6'); diyH.textContent = `🛠️ ${diyFilter.title}`;
+    const diyCost = el('p', 'body-2 muted');
+    diyCost.textContent = `Cost: ${diyFilter.cost} · ${diyFilter.effectiveness}`;
+
+    const diyDetails = el('details');
+    const diySum = el('summary', 'title-4'); diySum.textContent = 'How to build it';
+    const matH = el('p', 'body-3'); matH.textContent = 'You will need:';
+    const matList = el('ul', 'hack-list');
+    diyFilter.materials.forEach((m) => {
+      const li = el('li', 'hack-item');
+      const dot = el('div', 'hack-num'); dot.textContent = '·'; dot.setAttribute('aria-hidden', 'true');
+      const sp = el('p', 'body-3 muted'); sp.textContent = m;
+      li.append(dot, sp); matList.append(li);
+    });
+    const stepH = el('p', 'body-3'); stepH.textContent = 'Steps:';
+    const stepList = el('ol', 'hack-list');
+    diyFilter.steps.forEach((s, i) => {
+      const li = el('li', 'hack-item');
+      const num = el('div', 'hack-num'); num.textContent = `${i + 1}`; num.setAttribute('aria-hidden', 'true');
+      const sp = el('p', 'body-3 muted'); sp.textContent = s;
+      li.append(num, sp); stepList.append(li);
+    });
+    diyDetails.append(diySum, matH, matList, stepH, stepList);
+    diyCard.append(diyH, diyCost, diyDetails);
+    nodes.push(diyCard);
+  }
+
+  // ── 7.5 SHAP Explainability Breakdown (when source is 'shap') ─
+  const shapData = d.shapExplainer || d.advice?.shapExplainer;
+  if (shapData && Array.isArray(shapData.features)) {
+    const shapCard = el('section', 'card');
+    shapCard.setAttribute('aria-label', 'SHAP Risk Attribution Analysis');
+    const shapH = el('h3', 'heading-6');
+    shapH.textContent = '⚖️ SHAP Machine Learning Attribution (Fallback Explainability)';
+    const shapSub = el('p', 'body-2 muted');
+    shapSub.textContent = `Baseline Risk: ${shapData.baseline}% → Predicted Total Risk: ${shapData.predictedRisk}%. Marginal feature contributions (Shapley values):`;
+    shapCard.append(shapH, shapSub);
+
+    const shapList = el('ul', 'hack-list');
+    shapData.features.forEach((feat) => {
+      const li = el('li', 'hack-item');
+      const valBadge = el('div', 'hack-num');
+      valBadge.textContent = feat.shapValue >= 0 ? `+${feat.shapValue}%` : `${feat.shapValue}%`;
+      valBadge.style.color = feat.shapValue > 0 ? 'var(--warn)' : 'var(--accent)';
+      
+      const body = el('div', 'hack-body');
+      const title = el('p', 'body-3');
+      title.textContent = feat.name;
+      const desc = el('p', 'body-2 muted');
+      desc.textContent = feat.shapValue > 0
+        ? `Added +${feat.shapValue}% to the predicted smog risk quotient.`
+        : 'Neutral / zero marginal impact under current profile.';
+      body.append(title, desc);
+      li.append(valBadge, body);
+      shapList.append(li);
+    });
+
+    shapCard.append(shapList);
+    nodes.push(shapCard);
+  }
+
+  // ── 8. Source & disclaimer ─────────────────────────────────
   const srcEl = el('p', 'caption-2 muted source-tag');
   const dot   = el('span', `source-dot ${d.source}`); dot.setAttribute('aria-hidden', 'true');
   const srcTxt = el('span');
-  srcTxt.textContent = d.source === 'gemini'
-    ? 'Plan written by Gemini inside the safety rules.'
-    : 'Plan built from safety rules (AI service was unavailable).';
+  if (d.source === 'gemini') {
+    srcTxt.textContent = 'Plan written by Gemini inside the safety rules.';
+  } else if (d.source === 'shap') {
+    srcTxt.textContent = 'Plan generated by SHAP Explainable ML Model with feature attribution (Gemini was unavailable).';
+  } else {
+    srcTxt.textContent = 'Plan built from safety rules (AI services were unavailable).';
+  }
   srcEl.append(dot, srcTxt);
   nodes.push(srcEl);
 

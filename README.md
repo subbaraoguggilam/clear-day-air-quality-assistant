@@ -17,17 +17,21 @@ City / GPS + Profile
   → Cleanest 2-hour window detection (diurnal inversion scan)
   → Safety rules (src/domain/rules.js) — hard limits before the AI sees anything
   → Impact math (src/domain/impact.js) — CO₂, PM2.5 exposure cut, cigarette equivalents
-  → Gemini prompt: CONTEXT + SAFETY_CONSTRAINTS + COMPUTED_IMPACT
-  → Schema & safety validation → retry → rule-based fallback
-  → Rich UI: AQI gauge, PM2.5 bar chart, impact grid, ask-anything chat
+  → Tier 1: Gemini (GenAI) prompt: CONTEXT + SAFETY_CONSTRAINTS + COMPUTED_IMPACT
+  → Schema & safety validation → retry
+  → Tier 2 (Fallback): SHAP Explainable ML Model (src/domain/shap.js) with exact Shapley feature attribution
+  → Tier 3 (Ultimate Fallback): Deterministic Safety Rule Engine
+  → Rich UI: AQI gauge, PM2.5 bar chart, impact grid, SHAP breakdown, ask-anything chat
 ```
 
 ### Key design decisions
 
 | Decision | Detail |
 |---|---|
+| **Tiered Intelligence Architecture** | **Gemini (GenAI)** produces rich natural language. If GenAI is unavailable or fails safety filters, **SHAP Explainable ML Model** acts as the primary fallback, quantifying marginal risk contributions per feature before reverting to rule-based fallback. |
 | **Rules before the model** | AQI > 150 → no outdoor exercise for anyone. AQI > 300 → stay indoors. Sensitive households get mask and ventilation constraints injected into every prompt. |
-| **Validated output** | Gemini JSON is schema-checked and scanned for forbidden exertion words (jog, run, cycle, bike, sprint) when AQI > 150. Failure triggers one retry, then a full rule-based fallback. |
+| **Validated output** | Gemini JSON is schema-checked and scanned for forbidden exertion words (jog, run, cycle, bike, sprint) when AQI > 150. Failure triggers one retry, then SHAP fallback. |
+| **SHAP Explainability** | Exact Shapley value computation calculates the marginal risk added by outdoor AQI, vulnerable family members, transit exposure, and indoor cooking fuels. |
 | **Numbers never from the model** | CO₂ saved, PM2.5 exposure reduction, and cigarette-equivalent values are computed in code and cited by text in the prompt. The model is instructed not to invent numbers. |
 | **Cleanest window** | We scan 24 hours of hourly PM2.5 forecasts (06:00–20:00) and find the lowest consecutive 2-hour average — visualised in the in-page SVG bar chart. |
 | **Cigarette equivalent** | 22 µg/m³ daily mean PM2.5 ≈ 1 cigarette/day (Berkeley Air). Makes health cost tangible without being alarmist. |

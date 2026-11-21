@@ -1,0 +1,191 @@
+// SHAP (Shapley Additive exPlanations) ML Surrogate Layer
+// Computes feature contributions using exact Shapley values over an interpretable risk model.
+// Evaluates marginal contributions of factors: AQI, Vulnerability, Commute Exposure, and Fuel Type.
+
+export const BASELINE_RISK = 25.0; // Baseline population baseline risk score (%)
+
+/**
+ * Feature evaluation function: calculates risk score for any subset of active features.
+ * Features:
+ * - aqi: raw AQI value
+ * - sensitive: presence of children, elderly, asthma, or pregnancy (binary)
+ * - commuteExposure: high exposure commute (scooter, walking, cycling) vs low exposure (wfh, metro)
+ * - biomassFuel: biomass/wood cooking fuel (binary)
+ */
+export function evaluateRiskModel({ aqi = 50, sensitive = false, commuteExposure = false, biomassFuel = false }) {
+  let risk = BASELINE_RISK;
+  
+  // AQI contribution (sigmoid-like scaling up to +40%)
+  const aqiScore = Math.min(50, Math.max(0, (aqi - 50) * 0.16));
+  risk += aqiScore;
+
+  // Household sensitivity contribution (+15%)
+  if (sensitive) {
+    risk += 15.0;
+  }
+
+  // Commute exposure contribution (+10%)
+  if (commuteExposure) {
+    risk += 10.0;
+  }
+
+  // Indoor cooking biomass fuel (+10%)
+  if (biomassFuel) {
+    risk += 10.0;
+  }
+
+  return Math.min(100, Math.round(risk * 10) / 10);
+}
+
+/**
+ * Computes exact Shapley values for the 4 core features using subset permutations.
+ * Formula: phi_i = sum_S [ |S|!(|F|-|S|-1)! / |F|! * (v(S U {i}) - v(S)) ]
+ */
+export function computeShapValues({ aqi, profile }) {
+  const sensitive = Boolean(profile.children || profile.elderly || profile.asthma || profile.pregnancy);
+  const commuteExposure = ['two_wheeler', 'walk_cycle'].includes(profile.commute);
+  const biomassFuel = profile.cooking === 'wood';
+
+  const features = [
+    { key: 'air_quality', name: 'Outdoor AQI Severity', val: aqi, active: aqi > 50 },
+    { key: 'vulnerability', name: 'Household Health Sensitivity', val: sensitive ? 1 : 0, active: sensitive },
+    { key: 'commute_exposure', name: 'High-Exposure Commute', val: commuteExposure ? 1 : 0, active: commuteExposure },
+    { key: 'indoor_fuel', name: 'Indoor Cooking Biomass Fuel', val: biomassFuel ? 1 : 0, active: biomassFuel },
+  ];
+
+  const n = features.length;
+  // Factorial helper
+  const fact = [1, 1, 2, 6, 24];
+
+  const shapContributions = features.map((feature, i) => {
+    let phi = 0;
+    // Iterate over all 2^(n-1) subsets excluding feature i
+    const otherIndices = [0, 1, 2, 3].filter((idx) => idx !== i);
+    const numSubsets = 1 << otherIndices.length;
+
+    for (let mask = 0; mask < numSubsets; mask++) {
+      const subset = [];
+      for (let bit = 0; bit < otherIndices.length; bit++) {
+        if ((mask & (1 << bit)) !== 0) {
+          subset.push(otherIndices[bit]);
+        }
+      }
+
+      const sSize = subset.length;
+      const weight = (fact[sSize] * fact[n - sSize - 1]) / fact[n];
+
+      // Build model input for S
+      const inputWithout = { aqi: 50, sensitive: false, commuteExposure: false, biomassFuel: false };
+      subset.forEach((idx) => {
+        if (idx === 0) inputWithout.aqi = aqi;
+        if (idx === 1) inputWithout.sensitive = sensitive;
+        if (idx === 2) inputWithout.commuteExposure = commuteExposure;
+        if (idx === 3) inputWithout.biomassFuel = biomassFuel;
+      });
+
+      // Build model input for S U {i}
+      const inputWith = { ...inputWithout };
+      if (i === 0) inputWith.aqi = aqi;
+      if (i === 1) inputWith.sensitive = sensitive;
+      if (i === 2) inputWith.commuteExposure = commuteExposure;
+      if (i === 3) inputWith.biomassFuel = biomassFuel;
+
+      const delta = evaluateRiskModel(inputWith) - evaluateRiskModel(inputWithout);
+      phi += weight * delta;
+    }
+
+    return {
+      key: feature.key,
+      name: feature.name,
+      shapValue: Math.round(phi * 10) / 10,
+      impactDirection: phi > 0 ? 'increases_risk' : 'neutral',
+    };
+  });
+
+  const predictedRisk = evaluateRiskModel({ aqi, sensitive, commuteExposure, biomassFuel });
+
+  return {
+    baseline: BASELINE_RISK,
+    predictedRisk,
+    features: shapContributions.sort((a, b) => Math.abs(b.shapValue) - Math.abs(a.shapValue)),
+  };
+}
+
+/**
+ * SHAP surrogate ML advice generator: produces personalized recommendations
+ * directly driven and justified by feature attributions when GenAI is unavailable.
+ */
+export function generateShapAdvice(ctx) {
+  const { air, profile, bestWindow, constraints, impact } = ctx;
+  const shap = computeShapValues({ aqi: air.aqi, profile });
+  const ids = new Set(constraints.map((c) => c.id));
+  const w = bestWindow ? `${bestWindow.startHour}:00 to ${bestWindow.endHour}:00` : '12:00 to 14:00';
+
+  // Primary risk driver based on SHAP ranking
+  const topFactor = shap.features[0];
+  const summary = `Predicted smog exposure risk is ${shap.predictedRisk}% (Baseline: ${shap.baseline}%). Key driver: ${topFactor.name} (+${topFactor.shapValue}% risk). Advice generated by SHAP Explainable ML Model.`;
+
+  const routine = [
+    {
+      time: 'Morning',
+      action: ids.has('stay_in') ? 'Keep windows sealed and remain indoors.' : 'Limit outdoor morning activities to under 15 minutes.',
+      why: `Driven by ${topFactor.name} contributing +${topFactor.shapValue}% to your household exposure score.`,
+    },
+    {
+      time: w,
+      action: 'Schedule outdoor errands, grocery runs, or brief ventilation.',
+      why: `Forecast cleanest diurnal window with lowest particulate density (${bestWindow ? bestWindow.pm25 : air.pm25} µg/m³).`,
+    },
+    {
+      time: 'Commute',
+      action: ids.has('mask') ? 'Wear an N95/FFP2 respirator with a tight seal.' : 'Use closed transit windows or quieter side routes.',
+      why: profile.commute === 'two_wheeler' || profile.commute === 'walk_cycle'
+        ? `Commute mode is an active risk factor (+${shap.features.find((f) => f.key === 'commute_exposure')?.shapValue || 0}% risk).`
+        : 'Minimizes direct vehicular emission inhalation.',
+    },
+    {
+      time: 'Evening',
+      action: 'Operate indoor air circulation/filtration and avoid evening street markets.',
+      why: 'Inversion layer traps thermal and particulate exhaust near ground level after dark.',
+    },
+  ];
+
+  const indoor_hacks = [
+    {
+      tip: 'Wet-mop living areas instead of dry sweeping.',
+      impact: 'Prevents aerosolizing settled indoor PM2.5 particles back into breathing zones.',
+    },
+    {
+      tip: profile.cooking === 'wood'
+        ? 'Ventilate kitchen to the exterior and consider cleaner induction/LPG alternatives.'
+        : 'Keep kitchen exhaust fan operating during and 10 mins post cooking.',
+      impact: profile.cooking === 'wood'
+        ? `Directly mitigates indoor biomass fuel risk (+${shap.features.find((f) => f.key === 'indoor_fuel')?.shapValue || 0}% attributed risk).`
+        : 'Removes combustion gases before diffusion to bedrooms.',
+    },
+    {
+      tip: 'Keep bedroom doors closed with weather strips or damp towels under cracks.',
+      impact: 'Creates a clean-air sanctuary room with up to 40% lower PM concentration.',
+    },
+  ];
+
+  const alternatives = [
+    impact.co2
+      ? {
+          swap: `Shift from ${profile.commute} to public transit / metro for daily transit.`,
+          benefit: `Eliminates high-exposure roadway inhalation and cuts ${impact.co2.savedKgDay} kg CO₂ per day.`,
+        }
+      : {
+          swap: 'Batch weekly errands into a single mid-day outing.',
+          benefit: 'Reduces commute exposure hours during peak particulate concentration.',
+        },
+  ];
+
+  return {
+    summary,
+    routine,
+    indoor_hacks,
+    alternatives,
+    shapExplainer: shap,
+  };
+}

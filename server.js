@@ -1,7 +1,7 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
-import { classifyAqi } from './src/domain/aqi.js';
-import { buildConstraints } from './src/domain/rules.js';
+import { classifyAqi, detectTrend } from './src/domain/aqi.js';
+import { buildConstraints, getAlertBanner, getDiyFilterGuide } from './src/domain/rules.js';
 import { estimateImpact } from './src/domain/impact.js';
 import { geocode, fetchAir } from './src/services/aqiClient.js';
 import { getAdvice, answerQuestion } from './src/services/llm.js';
@@ -38,13 +38,21 @@ const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
 async function buildContext({ location, profile }) {
   const coords = location.city ? await geocode(location.city) : location;
   const air = await fetchAir(coords);
+  const sensitive = profile.children || profile.elderly || profile.asthma || profile.pregnancy;
   return {
     label: coords.label || 'Your location', air, profile, bestWindow: air.bestWindow,
     band: classifyAqi(air.aqi), constraints: buildConstraints(air.aqi, profile),
     impact: estimateImpact(profile, air.pm25, air.bestWindow),
+    alertBanner: getAlertBanner(air.aqi, sensitive),
+    trend: detectTrend(air.hourlyChart),
+    diyFilter: air.aqi > 100 ? getDiyFilterGuide() : null,
   };
 }
-const facts = (c) => ({ location: c.label, air: c.air, band: c.band, bestWindow: c.bestWindow, hourlyChart: c.air.hourlyChart, constraints: c.constraints, impact: c.impact });
+const facts = (c) => ({
+  location: c.label, air: c.air, band: c.band, bestWindow: c.bestWindow,
+  hourlyChart: c.air.hourlyChart, constraints: c.constraints, impact: c.impact,
+  alertBanner: c.alertBanner, trend: c.trend, diyFilter: c.diyFilter,
+});
 
 app.post('/api/advice', rateLimit, wrap(async (req, res) => {
   const ctx = await buildContext(parseRequest(req.body));

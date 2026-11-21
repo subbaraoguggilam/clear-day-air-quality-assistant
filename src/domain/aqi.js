@@ -43,3 +43,16 @@ export function buildHourlyChart(times, pm25, nowIso) {
 export function cigaretteEquivalent(pm25) {
   return Math.round((pm25 / 22) * 10) / 10;
 }
+
+// Compares PM2.5 average over first 3 hours vs last 3 hours of the next 6 hours.
+// Returns 'rising' | 'falling' | 'stable'.
+export function detectTrend(hourlyChart) {
+  const vals = hourlyChart.filter((d) => d.pm25 != null).slice(0, 6).map((d) => d.pm25);
+  if (vals.length < 4) return 'stable';
+  const early = (vals[0] + vals[1]) / 2;
+  const late  = (vals[vals.length - 2] + vals[vals.length - 1]) / 2;
+  const diff  = late - early;
+  if (diff > 5)  return 'rising';
+  if (diff < -5) return 'falling';
+  return 'stable';
+}

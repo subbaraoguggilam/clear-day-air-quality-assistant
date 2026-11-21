@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyAqi, bestWindow, buildHourlyChart, cigaretteEquivalent } from '../src/domain/aqi.js';
-import { buildConstraints, fallbackAdvice } from '../src/domain/rules.js';
+import { classifyAqi, bestWindow, buildHourlyChart, cigaretteEquivalent, detectTrend } from '../src/domain/aqi.js';
+import { buildConstraints, fallbackAdvice, getAlertBanner, getDiyFilterGuide } from '../src/domain/rules.js';
 import { estimateImpact } from '../src/domain/impact.js';
 import { validateAdvice } from '../src/services/llm.js';
 import { parseRequest } from '../src/api/validate.js';
+import { evaluateRiskModel, computeShapValues, generateShapAdvice, BASELINE_RISK } from '../src/domain/shap.js';
 
 const base = { children: false, elderly: false, asthma: false, pregnancy: false, commute: 'two_wheeler', cooking: 'lpg', distanceKm: 10 };
 
@@ -72,4 +73,85 @@ test('request validation whitelists fields', () => {
   assert.equal(parseRequest(ok).location.city, 'Anantapur');
   assert.throws(() => parseRequest({ ...ok, profile: { ...ok.profile, commute: 'rocket' } }));
   assert.throws(() => parseRequest({ city: 'x', profile: ok.profile }));
+});
+
+test('detectTrend returns rising when late PM2.5 exceeds early by more than 5', () => {
+  const chart = Array.from({ length: 6 }, (_, i) => ({ pm25: i < 2 ? 20 : 30, hour: 8 + i }));
+  assert.equal(detectTrend(chart), 'rising');
+});
+
+test('detectTrend returns falling when late PM2.5 drops by more than 5', () => {
+  const chart = Array.from({ length: 6 }, (_, i) => ({ pm25: i < 2 ? 50 : 30, hour: 8 + i }));
+  assert.equal(detectTrend(chart), 'falling');
+});
+
+test('detectTrend returns stable when difference is small', () => {
+  const chart = Array.from({ length: 6 }, (_, i) => ({ pm25: 25, hour: 8 + i }));
+  assert.equal(detectTrend(chart), 'stable');
+});
+
+test('getAlertBanner returns emergency for AQI > 300', () => {
+  assert.equal(getAlertBanner(310, false).level, 'emergency');
+  assert.equal(getAlertBanner(310, false).color, '#7F1D1D');
+});
+
+test('getAlertBanner returns danger for AQI 201-300', () => {
+  assert.equal(getAlertBanner(250, false).level, 'danger');
+});
+
+test('getAlertBanner returns caution for sensitive household at AQI 110', () => {
+  assert.equal(getAlertBanner(110, true).level, 'caution');
+  assert.equal(getAlertBanner(110, false), null);
+});
+
+test('getAlertBanner returns null for good air quality', () => {
+  assert.equal(getAlertBanner(40, false), null);
+  assert.equal(getAlertBanner(40, true), null);
+});
+
+test('getDiyFilterGuide has required fields', () => {
+  const guide = getDiyFilterGuide();
+  assert.ok(guide.title);
+  assert.ok(guide.cost);
+  assert.ok(Array.isArray(guide.steps) && guide.steps.length > 0);
+  assert.ok(Array.isArray(guide.materials) && guide.materials.length > 0);
+});
+
+test('estimateImpact healthScore is clamped between 0 and 100', () => {
+  assert.ok(estimateImpact(base, 0, null).healthScore <= 100);
+  assert.ok(estimateImpact(base, 300, null).healthScore >= 0);
+});
+
+test('estimateImpact exposure cutPct is between 0 and 100', () => {
+  const { exposure } = estimateImpact(base, 80, { pm25: 20, startHour: 9, endHour: 11 });
+  assert.ok(exposure.cutPct >= 0 && exposure.cutPct <= 100);
+});
+
+test('evaluateRiskModel produces baseline when no risk factors present', () => {
+  const risk = evaluateRiskModel({ aqi: 50, sensitive: false, commuteExposure: false, biomassFuel: false });
+  assert.equal(risk, BASELINE_RISK);
+});
+
+test('computeShapValues returns non-negative Shapley values for positive risk factors', () => {
+  const shap = computeShapValues({ aqi: 180, profile: { ...base, children: true, cooking: 'wood' } });
+  assert.equal(shap.baseline, BASELINE_RISK);
+  assert.ok(shap.predictedRisk > BASELINE_RISK);
+  assert.equal(shap.features.length, 4);
+  const sumShap = shap.features.reduce((acc, f) => acc + f.shapValue, 0);
+  assert.ok(Math.abs(shap.predictedRisk - (shap.baseline + sumShap)) < 1.0);
+});
+
+test('generateShapAdvice adheres to safety validator', () => {
+  const ctx = {
+    label: 'Delhi',
+    air: { aqi: 220, pm25: 140, pm10: 200, no2: 30, o3: 20 },
+    band: classifyAqi(220),
+    bestWindow: { startHour: 13, endHour: 15, pm25: 80 },
+    constraints: buildConstraints(220, base),
+    profile: base,
+    impact: estimateImpact(base, 140, { startHour: 13, endHour: 15, pm25: 80 }),
+  };
+  const advice = generateShapAdvice(ctx);
+  assert.ok(advice.summary.includes('SHAP'));
+  assert.doesNotThrow(() => validateAdvice(advice, 220));
 });
