@@ -4,6 +4,12 @@ import { classifyAqi } from './aqi.js';
 export const DISCLAIMER = 'This is general guidance, not medical advice. Follow your doctor for any health condition.';
 const hh = (h) => `${String(h).padStart(2, '0')}:00`;
 
+/**
+ * Builds deterministic safety constraints based on AQI thresholds and household vulnerabilities.
+ * @param {number} aqi - Air Quality Index
+ * @param {{ children?: boolean, elderly?: boolean, asthma?: boolean, pregnancy?: boolean, cooking?: string }} p - Profile
+ * @returns {Array<{ id: string, text: string }>}
+ */
 export function buildConstraints(aqi, p) {
   const sensitive = p.children || p.elderly || p.asthma || p.pregnancy;
   const c = [];
@@ -18,12 +24,21 @@ export function buildConstraints(aqi, p) {
   return c;
 }
 
-// Words the advice must not contain when outdoor exertion is unsafe. Conservative on purpose.
+/**
+ * Generates regex pattern for forbidden exertion words when outdoor air is unsafe.
+ * @param {number} aqi - Air Quality Index
+ * @returns {RegExp | null}
+ */
 export function forbiddenPattern(aqi) {
   return aqi > 150 ? /\b(jog(ging)?|run(ning)?|cycl(e|ing)|bik(e|ing)|sprint(ing)?)\b/i : null;
 }
 
-// Returns a banner object when AQI is at a level needing urgent action, or null.
+/**
+ * Returns an urgent alert banner when AQI crosses safety thresholds.
+ * @param {number} aqi - Air Quality Index
+ * @param {boolean} sensitive - Whether household has vulnerable members
+ * @returns {{ level: string, text: string, color: string } | null}
+ */
 export function getAlertBanner(aqi, sensitive) {
   if (aqi > 300) return { level: 'emergency', text: 'Hazardous air — stay indoors immediately. Seal doors and windows.', color: '#7F1D1D' };
   if (aqi > 200) return { level: 'danger',    text: 'Very unhealthy air — avoid all outdoor activity.',              color: '#A855F7' };
@@ -32,7 +47,10 @@ export function getAlertBanner(aqi, sensitive) {
   return null;
 }
 
-// Returns step-by-step Corsi-Rosenthal box instructions.
+/**
+ * Returns complete DIY Corsi-Rosenthal filter build instructions and material specifications.
+ * @returns {{ title: string, cost: string, effectiveness: string, materials: string[], steps: string[], tips: string[] }}
+ */
 export function getDiyFilterGuide() {
   return {
     title: 'DIY Corsi-Rosenthal Box Air Filter',
@@ -59,7 +77,11 @@ export function getDiyFilterGuide() {
   };
 }
 
-// Used when the LLM is down or its output fails validation.
+/**
+ * Generates deterministic rule-based advice fallback when AI services are unavailable.
+ * @param {{ aqi: number, constraints: Array<{ id: string, text: string }>, bestWindow: { startHour: number, endHour: number } | null, impact: any }} params
+ * @returns {{ summary: string, routine: Array<{ time: string, action: string, why: string }>, indoor_hacks: Array<{ tip: string, impact: string }>, alternatives: Array<{ swap: string, benefit: string }> }}
+ */
 export function fallbackAdvice({ aqi, constraints, bestWindow, impact }) {
   const ids = new Set(constraints.map((c) => c.id));
   const w = bestWindow ? `${hh(bestWindow.startHour)} to ${hh(bestWindow.endHour)}` : 'the middle of the day';

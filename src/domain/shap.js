@@ -40,6 +40,8 @@ export function evaluateRiskModel({ aqi = 50, sensitive = false, commuteExposure
 /**
  * Computes exact Shapley values for the 4 core features using subset permutations.
  * Formula: phi_i = sum_S [ |S|!(|F|-|S|-1)! / |F|! * (v(S U {i}) - v(S)) ]
+ * @param {{ aqi: number, profile: any }} params
+ * @returns {{ baseline: number, predictedRisk: number, features: Array<{ key: string, name: string, shapValue: number, impactDirection: string }> }}
  */
 export function computeShapValues({ aqi, profile }) {
   const sensitive = Boolean(profile.children || profile.elderly || profile.asthma || profile.pregnancy);
@@ -114,6 +116,8 @@ export function computeShapValues({ aqi, profile }) {
 /**
  * SHAP surrogate ML advice generator: produces personalized recommendations
  * directly driven and justified by feature attributions when GenAI is unavailable.
+ * @param {{ air: { aqi: number, pm25: number }, profile: any, bestWindow: any, constraints: any[], impact: any }} ctx
+ * @returns {{ summary: string, routine: any[], indoor_hacks: any[], alternatives: any[], shapExplainer: any }}
  */
 export function generateShapAdvice(ctx) {
   const { air, profile, bestWindow, constraints, impact } = ctx;

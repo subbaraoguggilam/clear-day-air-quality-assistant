@@ -1,8 +1,16 @@
 // Impact math lives in code, never in the LLM. All factors are stated estimates.
+/**
+ * Emission factors in grams of CO2 per passenger-kilometer.
+ * @type {Record<string, number>}
+ */
 export const G_PER_KM = { two_wheeler: 45, car: 170, bus: 70, metro: 30, walk_cycle: 0, wfh: 0 };
 const MASK_FACTOR = 0.5;
 const round = (n) => Math.round(n * 100) / 100;
 
+/**
+ * Baseline assumptions documenting all algorithmic impact estimates.
+ * @type {string[]}
+ */
 export const ASSUMPTIONS = [
   'Emission factors per km: scooter 45 g, car 170 g, bus 70 g, metro 30 g CO₂. These are typical estimates, not measurements of your vehicle.',
   'Commute is counted as a round trip, five days a week.',
@@ -12,6 +20,13 @@ export const ASSUMPTIONS = [
   'Cigarette equivalent: 22 µg/m³ daily mean PM2.5 ≈ 1 cigarette per day (Berkeley Air research).',
 ];
 
+/**
+ * Computes deterministic carbon, exposure reduction, and health impact metrics.
+ * @param {{ commute: string, distanceKm: number }} profile - Household profile
+ * @param {number} pm25 - Current ambient PM2.5 concentration in µg/m³
+ * @param {{ pm25: number, startHour: number, endHour: number } | null} window - Optimal outdoor window
+ * @returns {{ co2: { from: string, to: string, savedKgDay: number, savedKgWeek: number } | null, exposure: { cutPct: number }, cigarettesPerDay: number, healthScore: number, assumptions: string[] }}
+ */
 export function estimateImpact(profile, pm25, window) {
   const from = G_PER_KM[profile.commute];
   let co2 = null;
