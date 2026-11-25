@@ -9,6 +9,7 @@ import { AppError } from '../api/validate.js';
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
 const REQUEST_TIMEOUT_MS = 8000;
+const MAX_CACHE_ENTRIES = 500;
 
 /**
  * In-memory geo-bucketed response cache.
@@ -104,6 +105,10 @@ export async function fetchAir({ lat, lon }) {
     updated: currentReading.time,
   };
 
+  if (airDataCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = airDataCache.keys().next().value;
+    if (oldestKey !== undefined) airDataCache.delete(oldestKey);
+  }
   airDataCache.set(cacheKey, { cachedAt: Date.now(), value: formattedAirData });
   return formattedAirData;
 }

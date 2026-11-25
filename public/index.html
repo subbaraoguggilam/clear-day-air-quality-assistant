@@ -62,8 +62,8 @@
           <span class="caption-2 muted">AQI health levels tracked</span>
         </div>
         <div class="stat-item rv">
-          <span class="stat-num heading-3">24 h</span>
-          <span class="caption-2 muted">Hourly PM2.5 forecast</span>
+          <span class="stat-num heading-3">24 hours</span>
+          <span class="caption-2 muted">Hourly fine-dust (PM2.5) forecast</span>
         </div>
         <div class="stat-item rv">
           <span class="stat-num heading-3">0</span>
@@ -196,7 +196,7 @@
               </select>
             </div>
             <div class="field">
-              <label class="title-4" for="distanceKm">One-way distance (km)</label>
+              <label class="title-4" for="distanceKm">One-way distance (kilometers)</label>
               <input id="distanceKm" name="distanceKm" type="number" min="0" max="100" value="8" inputmode="decimal">
             </div>
           </div>
@@ -294,9 +294,9 @@
       <div class="faq rv">
         <details><summary class="title-3">Where does the air data come from?</summary><p class="body-3 muted">From Open Meteo's air quality service, which uses CAMS European air quality forecast models. Readings are cached on our server for up to ten minutes.</p></details>
         <details><summary class="title-3">Does the AI decide what is safe?</summary><p class="body-3 muted">No. Fixed rules written in code set all safety limits before the AI sees your request. If the AI output contains any forbidden advice (such as outdoor running above AQI 150), it is replaced with a rule-based fallback plan.</p></details>
-        <details><summary class="title-3">What is the cigarette-equivalent figure?</summary><p class="body-3 muted">Berkeley Air research found that a 22 µg/m³ daily mean PM2.5 exposure is roughly equivalent to smoking one cigarette per day. We use this ratio to make the health cost of today's air tangible and relatable.</p></details>
+        <details><summary class="title-3">What is the cigarette-equivalent figure?</summary><p class="body-3 muted">Berkeley Air research found that breathing 22 µg/m³ (micrograms of fine dust per cubic meter of air) over a day is roughly equivalent to smoking one cigarette per day. We use this ratio to make the health cost of today's air tangible and relatable.</p></details>
         <details><summary class="title-3">What do you store about me?</summary><p class="body-3 muted">Your profile is saved only in your browser's localStorage. It is sent to our server to build your plan but is never persisted there.</p></details>
-        <details><summary class="title-3">How are CO₂ and exposure numbers calculated?</summary><p class="body-3 muted">Our code uses published emission factors (scooter 45 g/km, car 170 g/km, bus 70 g/km, metro 30 g/km) and a simple PM2.5 inhalation exposure model. All assumptions are listed under every plan.</p></details>
+        <details><summary class="title-3">How are CO₂ and exposure numbers calculated?</summary><p class="body-3 muted">Our code uses published carbon emission factors in grams of CO₂ per kilometer (scooter 45 g/km, car 170 g/km, bus 70 g/km, metro 30 g/km) and a simple fine-dust (PM2.5) inhalation model. All assumptions are listed under every plan.</p></details>
         <details><summary class="title-3">What if the AI service is down?</summary><p class="body-3 muted">You still get a complete plan built entirely from the deterministic safety rules. It is clearly labelled as a rule-based fallback, not AI-generated advice.</p></details>
         <details><summary class="title-3">Is this medical advice?</summary><p class="body-3 muted">No. Clear Day provides general air quality guidance. If you or a family member have a diagnosed respiratory condition, follow your doctor's advice.</p></details>
       </div>

@@ -47,7 +47,8 @@ City / GPS + Profile
 npm install
 cp .env.example .env     # add your GEMINI_API_KEY (free: https://aistudio.google.com/apikey)
 npm start                # → http://localhost:3000
-npm test                 # 35 unit tests, zero network required
+npm run check            # syntax check server and frontend scripts
+npm test                 # 45 unit & integration tests, zero network required
 ```
 
 Without a Gemini key the app still returns a complete rule-based plan, clearly labelled as such.
@@ -93,7 +94,7 @@ This is general guidance, not medical advice. Impact figures are estimates. Engl
 ## Project layout
 
 ```
-server.js              — Express server (rate limit, security headers, caching, error handling)
+server.js              — Express server (rate limit, security headers, caching, /api/health, error handling)
 src/
   domain/
     aqi.js             — AQI classification, cleanest window, hourly chart data, cigarette eq.
@@ -116,5 +117,7 @@ public/
   404.html             — Lightweight 404 page
 tests/
   domain.test.js       — 26 domain unit tests (zero network, built-in Node test runner)
+  llm.test.js          — 5 mocked Gemini, retry, and SHAP fallback tests
+  server.test.js       — 5 Express route, validation, and security header tests
   validation.test.js   — 9 API validation & safety unit tests
 ```

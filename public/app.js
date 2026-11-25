@@ -360,10 +360,10 @@ function render(d) {
 
   const metaGrid = el('div', 'aqi-meta-grid');
   const metaItems = [
-    ['PM2.5', `${air.pm25 ?? '—'} µg/m³`],
-    ['PM10',  `${air.pm10  ?? '—'} µg/m³`],
-    ['NO₂',  `${air.no2   ?? '—'} µg/m³`],
-    ['O₃',   `${air.o3    ?? '—'} µg/m³`],
+    ['PM2.5 (Fine dust)', `${air.pm25 ?? '—'} µg/m³`],
+    ['PM10 (Coarse dust)', `${air.pm10 ?? '—'} µg/m³`],
+    ['NO₂ (Traffic gas)', `${air.no2 ?? '—'} µg/m³`],
+    ['O₃ (Ozone)', `${air.o3 ?? '—'} µg/m³`],
   ];
   metaItems.forEach(([lbl, val]) => {
     const cell = el('div', 'aqi-meta-cell');
@@ -373,7 +373,10 @@ function render(d) {
     metaGrid.append(cell);
   });
 
-  aqiCard.append(locationEl, aqiNumEl, bandPill, metaGrid);
+  const unitLegend = el('p', 'caption-2 muted');
+  unitLegend.textContent = 'µg/m³ = micrograms of pollutant per cubic meter of air (lower is cleaner).';
+
+  aqiCard.append(locationEl, aqiNumEl, bandPill, metaGrid, unitLegend);
 
   // Best window badge & calendar actions
   if (d.bestWindow) {
@@ -420,7 +423,7 @@ function render(d) {
     const svg = buildChart(hourlyChart, d.bestWindow?.startHour ?? null);
     if (svg) {
       const chartLbl = el('p', 'caption-2 muted');
-      chartLbl.textContent = '24-hour PM2.5 forecast. Green bars = cleanest window. WHO guideline: 15 µg/m³.';
+      chartLbl.textContent = '24-hour fine dust (PM2.5) forecast. Green bars = cleanest window. WHO safe limit: 15 µg/m³.';
       chartWrap.append(svg);
       aqiCard.append(chartWrap, chartLbl);
     }
@@ -584,7 +587,7 @@ function render(d) {
     const co2Val  = el('div', 'impact-val impact-green');
     co2Val.textContent = `${impact.co2.savedKgDay} kg`;
     const co2Lbl = el('div', 'impact-lbl');
-    co2Lbl.textContent = `CO₂ saved per day by switching from ${COMMUTE_LABEL[impact.co2.from]} to metro (${impact.co2.savedKgWeek} kg/week)`;
+    co2Lbl.textContent = `kilograms (kg) of CO₂ saved per day by switching from ${COMMUTE_LABEL[impact.co2.from]} to metro (${impact.co2.savedKgWeek} kg/week)`;
     co2Cell.append(co2Val, co2Lbl);
     impGrid.append(co2Cell);
 
@@ -593,7 +596,7 @@ function render(d) {
     const weekVal  = el('div', 'impact-val impact-green');
     weekVal.textContent = `${impact.co2.savedKgWeek} kg`;
     const weekLbl = el('div', 'impact-lbl');
-    weekLbl.textContent = 'CO₂ saved per week — roughly equivalent to planting a sapling';
+    weekLbl.textContent = 'kilograms (kg) of CO₂ saved per week — roughly equivalent to planting a sapling';
     weekCell.append(weekVal, weekLbl);
     impGrid.append(weekCell);
   }
@@ -658,26 +661,29 @@ function render(d) {
     const calcSection = el('div', 'cadr-calc');
     const calcTitle = el('h4', 'title-4'); calcTitle.textContent = '📐 Room Air Purifier Sizing Calculator';
     const calcDesc = el('p', 'caption-2 muted');
-    calcDesc.textContent = 'Estimate the airflow (CFM / m³/h) and filter setup needed to clear 80% of particles from your room.';
+    calcDesc.textContent = 'Find the fan airflow power and DIY filter size needed to clear 80% of smoke and dust from your room.';
     
     const cGrid = el('div', 'cadr-calc-grid');
     const areaWrap = el('div', 'cadr-input-wrap');
-    const areaLbl = el('label'); areaLbl.textContent = 'Room Area (sq ft):';
-    const areaInput = el('input'); areaInput.type = 'number'; areaInput.min = '30'; areaInput.max = '1500'; areaInput.value = '150';
+    const areaLbl = el('label'); areaLbl.htmlFor = 'cadr-area'; areaLbl.textContent = 'Room Floor Area (sq ft):';
+    const areaInput = el('input');
+    areaInput.id = 'cadr-area'; areaInput.type = 'number'; areaInput.min = '30'; areaInput.max = '1500'; areaInput.value = '150';
     areaWrap.append(areaLbl, areaInput);
 
     const heightWrap = el('div', 'cadr-input-wrap');
-    const heightLbl = el('label'); heightLbl.textContent = 'Ceiling (ft):';
-    const heightInput = el('input'); heightInput.type = 'number'; heightInput.min = '7'; heightInput.max = '16'; heightInput.value = '9';
+    const heightLbl = el('label'); heightLbl.htmlFor = 'cadr-height'; heightLbl.textContent = 'Ceiling Height (feet):';
+    const heightInput = el('input');
+    heightInput.id = 'cadr-height'; heightInput.type = 'number'; heightInput.min = '7'; heightInput.max = '16'; heightInput.value = '9';
     heightWrap.append(heightLbl, heightInput);
 
     const achWrap = el('div', 'cadr-input-wrap');
-    const achLbl = el('label'); achLbl.textContent = 'Air Turnover:';
+    const achLbl = el('label'); achLbl.htmlFor = 'cadr-ach'; achLbl.textContent = 'Air Refreshes per Hour:';
     const achInput = el('select');
+    achInput.id = 'cadr-ach';
     [
-      ['3', '3 ACH (Standard)'],
-      ['4.5', '4.5 ACH (Smog / Sensitive)'],
-      ['6', '6 ACH (Emergency)']
+      ['3', '3× / hour (Normal air day)'],
+      ['4.5', '4.5× / hour (Smoggy day — Recommended)'],
+      ['6', '6× / hour (Severe smog emergency)']
     ].forEach(([val, label]) => {
       const opt = el('option'); opt.value = val; opt.textContent = label;
       if (val === '4.5') opt.selected = true;
@@ -689,13 +695,16 @@ function render(d) {
     const outBox = el('div', 'cadr-output');
     function updateCadr() {
       const sqFt = Math.max(30, Number(areaInput.value) || 150);
+      const sqMeters = Math.round(sqFt * 0.0929 * 10) / 10;
       const ht = Math.max(7, Number(heightInput.value) || 9);
       const ach = Number(achInput.value) || 4.5;
       const res = calcPurifier(sqFt, ht, ach);
       outBox.replaceChildren(
-        el('div', 'cadr-stat', el('span', null, 'Required Airflow:'), el('strong', null, `${res.cfm} CFM (${res.m3h} m³/h)`)),
-        el('div', 'cadr-stat', el('span', null, '80% Air Clearance Time:'), el('strong', null, `~${res.time} minutes`)),
-        el('p', 'caption-2 muted', `Recommended Setup: ${res.rec}`)
+        el('div', 'cadr-stat', el('span', null, 'Room Size:'), el('strong', null, `${sqFt} sq ft (${sqMeters} m²)`)),
+        el('div', 'cadr-stat', el('span', null, 'Required Clean Airflow:'), el('strong', null, `${res.m3h} m³/h (${res.cfm} CFM)`)),
+        el('div', 'cadr-stat', el('span', null, 'Time to Clear 80% of Dust:'), el('strong', null, `~${res.time} minutes`)),
+        el('p', 'caption-2 muted', `Recommended Setup: ${res.rec}`),
+        el('p', 'caption-2 muted', 'Units: m³/h = cubic meters of clean air per hour · CFM = cubic feet per minute.')
       );
     }
     areaInput.addEventListener('input', updateCadr);
