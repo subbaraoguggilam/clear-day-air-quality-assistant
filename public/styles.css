@@ -544,3 +544,69 @@ details p { margin-top: var(--s-150); }
   .tag .w { color: var(--text); transition: none; }
   .btn, .skel, .dot, .feature-card { transition: none; animation: none; }
 }
+
+/* ── Action Bar & Plan Controls ──────────────────────────────── */
+.plan-actions {
+  display: flex; flex-wrap: wrap; gap: var(--s-100);
+  align-items: center; margin-top: var(--s-150);
+}
+.btn-whatsapp {
+  background: #25D366; color: #0B1911; font-weight: 600; border: none;
+}
+.btn-whatsapp:hover { background: #20BA5A; color: #000; }
+
+.cal-actions {
+  display: flex; flex-wrap: wrap; gap: var(--s-75);
+  margin-top: var(--s-100);
+}
+
+/* ── CADR Room Purifier Calculator ───────────────────────────── */
+.cadr-calc {
+  margin-top: var(--s-200); padding: var(--s-200);
+  background: var(--surface2); border: 1px solid var(--line2);
+  border-radius: var(--r-md);
+}
+.cadr-calc-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--s-150); margin: var(--s-150) 0;
+}
+.cadr-input-wrap label {
+  display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: var(--s-50);
+}
+.cadr-input-wrap input, .cadr-input-wrap select {
+  width: 100%; padding: var(--s-75) var(--s-100);
+  background: var(--field); border: 1px solid var(--line);
+  border-radius: var(--r-sm); color: var(--text); font-family: inherit; font-size: 0.9rem;
+}
+.cadr-output {
+  padding: var(--s-150); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  display: flex; flex-direction: column; gap: var(--s-75);
+}
+.cadr-stat {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.88rem;
+}
+.cadr-stat strong { color: var(--accent); font-size: 1.05rem; }
+
+/* ── Print Stylesheet ────────────────────────────────────────── */
+@media print {
+  body { background: #ffffff !important; color: #000000 !important; font-size: 11pt; }
+  .nav, .hero, .stats-strip, #why, #how, #plan-form, #ask-form,
+  .plan-actions, .cal-actions, .foot, .skip, #aqi-ref-h, .aqi-table,
+  .faq, .final, .btn, .source-tag { display: none !important; }
+  
+  #main-content, #plan, .plan-grid, .results-col, #result {
+    display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important;
+  }
+  .card {
+    background: #ffffff !important; border: 1px solid #cccccc !important;
+    color: #000000 !important; box-shadow: none !important;
+    page-break-inside: avoid; margin-bottom: 12pt !important; padding: 12pt !important;
+  }
+  .aqi-num { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
+  .muted { color: #444444 !important; }
+  .aqi-band-pill { border: 1px solid #333 !important; }
+  .impact-val { color: #15803d !important; }
+}
+

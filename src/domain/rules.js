@@ -1,5 +1,6 @@
 // Deterministic safety layer. The LLM writes inside these limits and may not break them.
 import { classifyAqi } from './aqi.js';
+import { calculatePurifierNeeds } from './purifier.js';
 
 export const DISCLAIMER = 'This is general guidance, not medical advice. Follow your doctor for any health condition.';
 const hh = (h) => `${String(h).padStart(2, '0')}:00`;
@@ -52,10 +53,12 @@ export function getAlertBanner(aqi, sensitive) {
  * @returns {{ title: string, cost: string, effectiveness: string, materials: string[], steps: string[], tips: string[] }}
  */
 export function getDiyFilterGuide() {
+  const standardRoom = calculatePurifierNeeds({ areaSqFt: 150 });
   return {
     title: 'DIY Corsi-Rosenthal Box Air Filter',
-    cost: 'Approx ₹800–₹1,500',
+    cost: 'Approx ₹1,000–₹2,500',
     effectiveness: 'Reduces indoor PM2.5 by up to 70% — comparable to commercial HEPA purifiers costing 10x more.',
+    baseline: standardRoom,
     materials: [
       '4 × MERV-13 furnace filters (20×20 cm or standard box-fan size)',
       '1 × box fan (same size as filters)',
@@ -73,6 +76,7 @@ export function getDiyFilterGuide() {
       'Run continuously during high AQI days — the filter itself becomes part of the air path.',
       'A 20×20 cm fan covers a 20–30 m² room effectively.',
       'Available at hardware stores: Havells, Orient, or similar box fans work well.',
+      `For a typical bedroom (150 sq ft), requires ~${standardRoom.requiredCfm} CFM to clear ~80% of particles in ${standardRoom.clearanceTimeMinutes} minutes.`,
     ],
   };
 }

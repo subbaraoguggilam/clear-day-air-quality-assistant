@@ -6,6 +6,7 @@ import { estimateImpact } from '../src/domain/impact.js';
 import { validateAdvice } from '../src/services/llm.js';
 import { parseRequest } from '../src/api/validate.js';
 import { evaluateRiskModel, computeShapValues, generateShapAdvice, BASELINE_RISK } from '../src/domain/shap.js';
+import { calculatePurifierNeeds } from '../src/domain/purifier.js';
 
 const base = { children: false, elderly: false, asthma: false, pregnancy: false, commute: 'two_wheeler', cooking: 'lpg', distanceKm: 10 };
 
@@ -154,4 +155,34 @@ test('generateShapAdvice adheres to safety validator', () => {
   const advice = generateShapAdvice(ctx);
   assert.ok(advice.summary.includes('SHAP'));
   assert.doesNotThrow(() => validateAdvice(advice, 220));
+});
+
+test('calculatePurifierNeeds calculates correct CFM and clearance time for standard room', () => {
+  const res = calculatePurifierNeeds({ areaSqFt: 150, ceilingHeightFt: 9, targetAch: 4.5 });
+  assert.equal(res.roomVolumeCuFt, 1350);
+  assert.equal(res.requiredCfm, Math.round((1350 * 4.5) / 60)); // 101 CFM
+  assert.equal(res.clearanceTimeMinutes, Math.round((Math.log(5) / 4.5) * 60)); // ~21 mins
+  assert.equal(res.recommendedSetup.filtersNeeded, 1);
+});
+
+test('calculatePurifierNeeds scales setup for larger rooms and handles defaults', () => {
+  const small = calculatePurifierNeeds({ areaSqFt: 80 });
+  assert.equal(small.recommendedSetup.name, 'Single-Filter Mini Fan Box');
+
+  const medium = calculatePurifierNeeds({ areaSqFt: 250 });
+  assert.equal(medium.recommendedSetup.name, '2-Filter Wedge Corsi-Rosenthal Box');
+
+  const large = calculatePurifierNeeds({ areaSqFt: 500 });
+  assert.equal(large.recommendedSetup.name, 'Full 4-Filter Corsi-Rosenthal Cube');
+
+  const defaults = calculatePurifierNeeds();
+  assert.ok(defaults.requiredCfm > 0);
+  assert.equal(defaults.targetAch, 4.5);
+});
+
+test('getDiyFilterGuide includes baseline purifier requirements', () => {
+  const guide = getDiyFilterGuide();
+  assert.ok(guide.baseline);
+  assert.ok(guide.baseline.requiredCfm > 0);
+  assert.ok(guide.tips.some((t) => t.includes('CFM')));
 });

@@ -36,6 +36,10 @@ City / GPS + Profile
 | **Cleanest window** | We scan 24 hours of hourly PM2.5 forecasts (06:00–20:00) and find the lowest consecutive 2-hour average — visualised in the in-page SVG bar chart. |
 | **Cigarette equivalent** | 22 µg/m³ daily mean PM2.5 ≈ 1 cigarette/day (Berkeley Air). Makes health cost tangible without being alarmist. |
 | **Transparency drawer** | A "Why this advice" card lists every rule triggered; an assumptions panel sits under the impact grid. |
+| **PWA & Offline Shell** | Web App Manifest and Service Worker enable home screen installation and offline browsing of safety guides and AQI tables. |
+| **Community Sharing & Calendar** | 1-tap WhatsApp sharing formatted for family groups, clipboard export, and 1-click Google Calendar / `.ics` integration for the cleanest air window. |
+| **CADR Sizing Calculator** | EPA-grounded Clean Air Delivery Rate calculator for room size, ceiling height, and required fan filter setups. |
+| **Audio Accessibility** | Native Web Speech API integration reads out a daily smog briefing with a single click. |
 
 ## How to run
 
@@ -43,7 +47,7 @@ City / GPS + Profile
 npm install
 cp .env.example .env     # add your GEMINI_API_KEY (free: https://aistudio.google.com/apikey)
 npm start                # → http://localhost:3000
-npm test                 # 10 unit tests, zero network required
+npm test                 # 35 unit tests, zero network required
 ```
 
 Without a Gemini key the app still returns a complete rule-based plan, clearly labelled as such.
@@ -95,16 +99,22 @@ src/
     aqi.js             — AQI classification, cleanest window, hourly chart data, cigarette eq.
     rules.js           — Safety constraints, forbidden word filter, rule-based fallback advice
     impact.js          — CO₂ savings, PM2.5 exposure cut, health score math
+    shap.js            — SHAP Explainable ML Model (fallback intelligence & feature attribution)
+    purifier.js        — CADR (Clean Air Delivery Rate) and DIY purifier sizing math
   services/
     aqiClient.js       — Open Meteo geocoding + air quality client (cached)
     llm.js             — Gemini prompt builder, output validation, retry, fallback
   api/
     validate.js        — Whitelist validation for all request fields
 public/
-  index.html           — Semantic, accessible single-page app
-  styles.css           — Design system: tokens, type scale, AQI colours, responsive layout
-  app.js               — Rendering: AQI gauge, SVG PM2.5 chart, impact grid, ask-chat
+  index.html           — Semantic, accessible single-page app & PWA metadata
+  styles.css           — Design system: tokens, AQI colours, print stylesheet, responsive layout
+  app.js               — Frontend logic: AQI hero, chart, CADR calculator, sharing, speech & calendar
+  manifest.json        — PWA web app manifest
+  sw.js                — Service Worker for offline static asset caching
+  icon.svg             — Vector PWA application icon
   404.html             — Lightweight 404 page
 tests/
-  domain.test.js       — 10 unit tests (zero network, built-in Node test runner)
+  domain.test.js       — 26 domain unit tests (zero network, built-in Node test runner)
+  validation.test.js   — 9 API validation & safety unit tests
 ```

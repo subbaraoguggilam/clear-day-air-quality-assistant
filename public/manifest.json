@@ -1,0 +1,17 @@
+{
+  "name": "Clear Day — Urban Air Quality Assistant",
+  "short_name": "Clear Day",
+  "description": "Personalised smog-safe daily plan, indoor air hacks and low-emission routines.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#131209",
+  "theme_color": "#22C55E",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

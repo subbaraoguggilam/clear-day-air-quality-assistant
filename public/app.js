@@ -5,6 +5,13 @@
    ============================================================ */
 document.documentElement.classList.add('js');
 
+// ── Service Worker (PWA) ────────────────────────────────────
+if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* offline registration silent fallback */ });
+  });
+}
+
 // ── Utilities ────────────────────────────────────────────────
 const $  = (s) => document.querySelector(s);
 /** @param {string} tag @param {string|null} cls @param {...(Node|string)} kids */
@@ -97,6 +104,105 @@ cityInput.addEventListener('input', () => {
   cityInput.required = true;
   cityInput.classList.remove('error-field');
 });
+
+// ── Feature Helpers: Calendar, Purifier, Share & Speech ───────
+function calcPurifier(sqFt, height = 9, ach = 4.5) {
+  const volume = sqFt * height;
+  const cfm = Math.round((volume * ach) / 60);
+  const m3h = Math.round(cfm * 1.699);
+  const time = Math.round((Math.log(5) / ach) * 60);
+  let rec = '';
+  if (cfm <= 140) {
+    rec = '1-Filter Mini Fan Box (~₹1,200 / $15) — ideal for small bedrooms.';
+  } else if (cfm <= 280) {
+    rec = '2-Filter Wedge Corsi-Rosenthal Box (~₹2,000 / $25) — ideal for bedrooms & studies.';
+  } else {
+    rec = '4-Filter Corsi-Rosenthal Cube (~₹3,200 / $38) — high airflow for living spaces.';
+  }
+  return { volume, cfm, m3h, time, rec };
+}
+
+function formatCalDate(hour) {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+  return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
+
+function getGoogleCalUrl(loc, startHour, endHour) {
+  const start = formatCalDate(startHour);
+  const end = formatCalDate(endHour);
+  const title = encodeURIComponent(`🌿 Cleanest Air Window — ${loc}`);
+  const details = encodeURIComponent(`Clear Day recommendation: Cleanest 2-hour air window today in ${loc} (${hh(startHour)}–${hh(endHour)}). Best time to open windows or run essential errands.`);
+  const location = encodeURIComponent(loc);
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
+}
+
+function downloadIcs(loc, startHour, endHour) {
+  const start = formatCalDate(startHour);
+  const end = formatCalDate(endHour);
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Clear Day//Air Quality Assistant//EN',
+    'BEGIN:VEVENT',
+    `SUMMARY:🌿 Cleanest Air Window (${hh(startHour)}-${hh(endHour)}) - ${loc}`,
+    `DESCRIPTION:Cleanest air window today in ${loc}. Recommended time for ventilation and essential errands.`,
+    `LOCATION:${loc}`,
+    `DTSTART:${start}`,
+    `DTEND:${end}`,
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `clearday-window-${startHour}h.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function getShareSummary(d) {
+  const win = d.bestWindow ? `${hh(d.bestWindow.startHour)} to ${hh(d.bestWindow.endHour)}` : 'N/A';
+  return [
+    `🌤️ Clear Day Air Advisory — ${d.location}`,
+    `AQI: ${d.air.aqi} (${d.band.label}) | PM2.5: ${d.air.pm25} µg/m³`,
+    d.alertBanner ? `⚠️ ${d.alertBanner.text}` : null,
+    d.bestWindow ? `🌿 Cleanest window: ${win}` : null,
+    d.advice?.summary ? `\n📋 Plan: ${d.advice.summary}` : null,
+    d.impact?.exposure ? `🛡️ Inhaled PM2.5 cut: ~${d.impact.exposure.cutPct}% with mask & smart timing.` : null,
+    `\nGet your free plan: ${window.location.origin}`
+  ].filter(Boolean).join('\n');
+}
+
+function toggleBriefing(text, btn) {
+  if (!('speechSynthesis' in window)) {
+    btn.textContent = 'Speech not supported';
+    return;
+  }
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    btn.textContent = '🔊 Listen to plan';
+    btn.setAttribute('aria-pressed', 'false');
+    return;
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.95;
+  u.onend = () => {
+    btn.textContent = '🔊 Listen to plan';
+    btn.setAttribute('aria-pressed', 'false');
+  };
+  u.onerror = () => {
+    btn.textContent = '🔊 Listen to plan';
+    btn.setAttribute('aria-pressed', 'false');
+  };
+  btn.textContent = '⏹️ Stop listening';
+  btn.setAttribute('aria-pressed', 'true');
+  window.speechSynthesis.speak(u);
+}
 
 // ── SVG PM2.5 bar chart ───────────────────────────────────────
 /**
@@ -234,11 +340,25 @@ function render(d) {
 
   aqiCard.append(locationEl, aqiNumEl, bandPill, metaGrid);
 
-  // Best window badge
+  // Best window badge & calendar actions
   if (d.bestWindow) {
     const wb = el('div', 'window-badge');
     wb.innerHTML = `🌿 Cleanest outdoor window: <strong>${win}</strong> (PM2.5 ${d.bestWindow.pm25} µg/m³)`;
-    aqiCard.append(wb);
+    
+    const calWrap = el('div', 'cal-actions');
+    const gCalLink = el('a', 'btn btn-ghost btn-sm');
+    gCalLink.href = getGoogleCalUrl(d.location, d.bestWindow.startHour, d.bestWindow.endHour);
+    gCalLink.target = '_blank';
+    gCalLink.rel = 'noopener noreferrer';
+    gCalLink.innerHTML = `📅 Add to Google Calendar`;
+
+    const icsBtn = el('button', 'btn btn-ghost btn-sm');
+    icsBtn.type = 'button';
+    icsBtn.innerHTML = `📥 Download .ics`;
+    icsBtn.addEventListener('click', () => downloadIcs(d.location, d.bestWindow.startHour, d.bestWindow.endHour));
+
+    calWrap.append(gCalLink, icsBtn);
+    aqiCard.append(wb, calWrap);
   }
 
   // Trend badge
@@ -267,6 +387,48 @@ function render(d) {
   }
 
   nodes.push(aqiCard);
+
+  // ── 1.5 Plan Action Bar (WhatsApp, Copy, Print, Audio Briefing) ─
+  const actionsWrap = el('div', 'plan-actions');
+  const shareText = getShareSummary(d);
+
+  // WhatsApp Share button
+  const waBtn = el('a', 'btn btn-sm btn-whatsapp');
+  waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+  waBtn.target = '_blank';
+  waBtn.rel = 'noopener noreferrer';
+  waBtn.setAttribute('aria-label', "Share today's air plan on WhatsApp");
+  waBtn.innerHTML = '💬 Share on WhatsApp';
+
+  // Copy Plan button
+  const copyBtn = el('button', 'btn btn-ghost btn-sm');
+  copyBtn.type = 'button';
+  copyBtn.innerHTML = '📋 Copy plan';
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      copyBtn.innerHTML = '✓ Copied!';
+      setTimeout(() => { copyBtn.innerHTML = '📋 Copy plan'; }, 2000);
+    } catch {
+      copyBtn.innerHTML = 'Failed to copy';
+    }
+  });
+
+  // Print / PDF button
+  const printBtn = el('button', 'btn btn-ghost btn-sm');
+  printBtn.type = 'button';
+  printBtn.innerHTML = '🖨️ Print / PDF';
+  printBtn.addEventListener('click', () => window.print());
+
+  // Audio Speech button
+  const audioBtn = el('button', 'btn btn-ghost btn-sm');
+  audioBtn.type = 'button';
+  audioBtn.innerHTML = '🔊 Listen to plan';
+  const speechText = `Today's air quality in ${d.location} is AQI ${air.aqi}, which is ${band.label}. ${advice.summary || ''} ${d.bestWindow ? `Your cleanest outdoor window is from ${hh(d.bestWindow.startHour)} to ${hh(d.bestWindow.endHour)}.` : ''}`;
+  audioBtn.addEventListener('click', () => toggleBriefing(speechText, audioBtn));
+
+  actionsWrap.append(waBtn, copyBtn, printBtn, audioBtn);
+  nodes.push(actionsWrap);
 
   // ── 2. Why this advice ─────────────────────────────────────
   const whyCard = el('section', 'card');
@@ -451,6 +613,59 @@ function render(d) {
     });
     diyDetails.append(diySum, matH, matList, stepH, stepList);
     diyCard.append(diyH, diyCost, diyDetails);
+
+    // ── Interactive Room Purifier & CADR Sizing Tool ──────────
+    const calcSection = el('div', 'cadr-calc');
+    const calcTitle = el('h4', 'title-4'); calcTitle.textContent = '📐 Room Air Purifier Sizing Calculator';
+    const calcDesc = el('p', 'caption-2 muted');
+    calcDesc.textContent = 'Estimate the airflow (CFM / m³/h) and filter setup needed to clear 80% of particles from your room.';
+    
+    const cGrid = el('div', 'cadr-calc-grid');
+    const areaWrap = el('div', 'cadr-input-wrap');
+    const areaLbl = el('label'); areaLbl.textContent = 'Room Area (sq ft):';
+    const areaInput = el('input'); areaInput.type = 'number'; areaInput.min = '30'; areaInput.max = '1500'; areaInput.value = '150';
+    areaWrap.append(areaLbl, areaInput);
+
+    const heightWrap = el('div', 'cadr-input-wrap');
+    const heightLbl = el('label'); heightLbl.textContent = 'Ceiling (ft):';
+    const heightInput = el('input'); heightInput.type = 'number'; heightInput.min = '7'; heightInput.max = '16'; heightInput.value = '9';
+    heightWrap.append(heightLbl, heightInput);
+
+    const achWrap = el('div', 'cadr-input-wrap');
+    const achLbl = el('label'); achLbl.textContent = 'Air Turnover:';
+    const achInput = el('select');
+    [
+      ['3', '3 ACH (Standard)'],
+      ['4.5', '4.5 ACH (Smog / Sensitive)'],
+      ['6', '6 ACH (Emergency)']
+    ].forEach(([val, label]) => {
+      const opt = el('option'); opt.value = val; opt.textContent = label;
+      if (val === '4.5') opt.selected = true;
+      achInput.append(opt);
+    });
+    achWrap.append(achLbl, achInput);
+    cGrid.append(areaWrap, heightWrap, achWrap);
+
+    const outBox = el('div', 'cadr-output');
+    function updateCadr() {
+      const sqFt = Math.max(30, Number(areaInput.value) || 150);
+      const ht = Math.max(7, Number(heightInput.value) || 9);
+      const ach = Number(achInput.value) || 4.5;
+      const res = calcPurifier(sqFt, ht, ach);
+      outBox.replaceChildren(
+        el('div', 'cadr-stat', el('span', null, 'Required Airflow:'), el('strong', null, `${res.cfm} CFM (${res.m3h} m³/h)`)),
+        el('div', 'cadr-stat', el('span', null, '80% Air Clearance Time:'), el('strong', null, `~${res.time} minutes`)),
+        el('p', 'caption-2 muted', `Recommended Setup: ${res.rec}`)
+      );
+    }
+    areaInput.addEventListener('input', updateCadr);
+    heightInput.addEventListener('input', updateCadr);
+    achInput.addEventListener('change', updateCadr);
+    updateCadr();
+
+    calcSection.append(calcTitle, calcDesc, cGrid, outBox);
+    diyCard.append(calcSection);
+
     nodes.push(diyCard);
   }
 
