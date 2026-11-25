@@ -1,10 +1,34 @@
 {
   "name": "clear-day-air-quality-assistant",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "GenAI assistant for winter smog: rules decide safety, Gemini personalizes, code computes impact.",
-  "scripts": { "start": "node server.js", "test": "node --test" },
-  "engines": { "node": ">=20.12" },
-  "dependencies": { "express": "^4.21.2" }
+  "description": "GenAI assistant for winter smog: deterministic safety rules, Gemini personalization, code impact math, and SHAP explainability.",
+  "keywords": [
+    "air-quality",
+    "aqi",
+    "gemini-api",
+    "pm25",
+    "smog-advisory",
+    "shap-xai",
+    "pwa",
+    "clean-air"
+  ],
+  "author": "Clear Day Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/subbaraoguggilam/clear-day-air-quality-assistant.git"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "check": "node --check server.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
 }

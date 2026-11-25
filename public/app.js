@@ -106,6 +106,13 @@ cityInput.addEventListener('input', () => {
 });
 
 // ── Feature Helpers: Calendar, Purifier, Share & Speech ───────
+/**
+ * Computes required Clean Air Delivery Rate (CADR) and DIY filter setup for a room.
+ * @param {number} sqFt - Room floor area in square feet
+ * @param {number} [height=9] - Ceiling height in feet
+ * @param {number} [ach=4.5] - Target Air Changes per Hour
+ * @returns {{ volume: number, cfm: number, m3h: number, time: number, rec: string }}
+ */
 function calcPurifier(sqFt, height = 9, ach = 4.5) {
   const volume = sqFt * height;
   const cfm = Math.round((volume * ach) / 60);
@@ -122,12 +129,24 @@ function calcPurifier(sqFt, height = 9, ach = 4.5) {
   return { volume, cfm, m3h, time, rec };
 }
 
+/**
+ * Formats today's local hour into an iCalendar/Google Calendar UTC timestamp.
+ * @param {number} hour - Hour of day (0-23)
+ * @returns {string}
+ */
 function formatCalDate(hour) {
   const now = new Date();
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
-  return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const dateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+  return dateObj.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 }
 
+/**
+ * Builds a pre-filled Google Calendar event URL for the cleanest air window.
+ * @param {string} loc - Location display label
+ * @param {number} startHour - Start hour
+ * @param {number} endHour - End hour
+ * @returns {string}
+ */
 function getGoogleCalUrl(loc, startHour, endHour) {
   const start = formatCalDate(startHour);
   const end = formatCalDate(endHour);
@@ -137,6 +156,12 @@ function getGoogleCalUrl(loc, startHour, endHour) {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
 }
 
+/**
+ * Generates and triggers a download for a standard .ics calendar event file.
+ * @param {string} loc - Location display label
+ * @param {number} startHour - Start hour
+ * @param {number} endHour - End hour
+ */
 function downloadIcs(loc, startHour, endHour) {
   const start = formatCalDate(startHour);
   const end = formatCalDate(endHour);
@@ -156,28 +181,38 @@ function downloadIcs(loc, startHour, endHour) {
   ].join('\r\n');
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `clearday-window-${startHour}h.ics`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `clearday-window-${startHour}h.ics`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
 }
 
-function getShareSummary(d) {
-  const win = d.bestWindow ? `${hh(d.bestWindow.startHour)} to ${hh(d.bestWindow.endHour)}` : 'N/A';
+/**
+ * Formats a concise, emoji-friendly advisory summary for clipboard and WhatsApp sharing.
+ * @param {any} data - Rendered API advice response
+ * @returns {string}
+ */
+function getShareSummary(data) {
+  const win = data.bestWindow ? `${hh(data.bestWindow.startHour)} to ${hh(data.bestWindow.endHour)}` : 'N/A';
   return [
-    `🌤️ Clear Day Air Advisory — ${d.location}`,
-    `AQI: ${d.air.aqi} (${d.band.label}) | PM2.5: ${d.air.pm25} µg/m³`,
-    d.alertBanner ? `⚠️ ${d.alertBanner.text}` : null,
-    d.bestWindow ? `🌿 Cleanest window: ${win}` : null,
-    d.advice?.summary ? `\n📋 Plan: ${d.advice.summary}` : null,
-    d.impact?.exposure ? `🛡️ Inhaled PM2.5 cut: ~${d.impact.exposure.cutPct}% with mask & smart timing.` : null,
+    `🌤️ Clear Day Air Advisory — ${data.location}`,
+    `AQI: ${data.air.aqi} (${data.band.label}) | PM2.5: ${data.air.pm25} µg/m³`,
+    data.alertBanner ? `⚠️ ${data.alertBanner.text}` : null,
+    data.bestWindow ? `🌿 Cleanest window: ${win}` : null,
+    data.advice?.summary ? `\n📋 Plan: ${data.advice.summary}` : null,
+    data.impact?.exposure ? `🛡️ Inhaled PM2.5 cut: ~${data.impact.exposure.cutPct}% with mask & smart timing.` : null,
     `\nGet your free plan: ${window.location.origin}`
   ].filter(Boolean).join('\n');
 }
 
+/**
+ * Speaks or stops the daily spoken air briefing using the browser Web Speech API.
+ * @param {string} text - Spoken briefing script
+ * @param {HTMLButtonElement} btn - Trigger button element
+ */
 function toggleBriefing(text, btn) {
   if (!('speechSynthesis' in window)) {
     btn.textContent = 'Speech not supported';
@@ -189,19 +224,19 @@ function toggleBriefing(text, btn) {
     btn.setAttribute('aria-pressed', 'false');
     return;
   }
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.95;
-  u.onend = () => {
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  utterance.onend = () => {
     btn.textContent = '🔊 Listen to plan';
     btn.setAttribute('aria-pressed', 'false');
   };
-  u.onerror = () => {
+  utterance.onerror = () => {
     btn.textContent = '🔊 Listen to plan';
     btn.setAttribute('aria-pressed', 'false');
   };
   btn.textContent = '⏹️ Stop listening';
   btn.setAttribute('aria-pressed', 'true');
-  window.speechSynthesis.speak(u);
+  window.speechSynthesis.speak(utterance);
 }
 
 // ── SVG PM2.5 bar chart ───────────────────────────────────────
@@ -342,19 +377,24 @@ function render(d) {
 
   // Best window badge & calendar actions
   if (d.bestWindow) {
-    const wb = el('div', 'window-badge');
-    wb.innerHTML = `🌿 Cleanest outdoor window: <strong>${win}</strong> (PM2.5 ${d.bestWindow.pm25} µg/m³)`;
-    
+    const wb = el(
+      'div',
+      'window-badge',
+      txt('🌿 Cleanest outdoor window: '),
+      el('strong', null, win),
+      txt(` (PM2.5 ${d.bestWindow.pm25} µg/m³)`)
+    );
+
     const calWrap = el('div', 'cal-actions');
     const gCalLink = el('a', 'btn btn-ghost btn-sm');
     gCalLink.href = getGoogleCalUrl(d.location, d.bestWindow.startHour, d.bestWindow.endHour);
     gCalLink.target = '_blank';
     gCalLink.rel = 'noopener noreferrer';
-    gCalLink.innerHTML = `📅 Add to Google Calendar`;
+    gCalLink.textContent = '📅 Add to Google Calendar';
 
     const icsBtn = el('button', 'btn btn-ghost btn-sm');
     icsBtn.type = 'button';
-    icsBtn.innerHTML = `📥 Download .ics`;
+    icsBtn.textContent = '📥 Download .ics';
     icsBtn.addEventListener('click', () => downloadIcs(d.location, d.bestWindow.startHour, d.bestWindow.endHour));
 
     calWrap.append(gCalLink, icsBtn);
@@ -398,32 +438,32 @@ function render(d) {
   waBtn.target = '_blank';
   waBtn.rel = 'noopener noreferrer';
   waBtn.setAttribute('aria-label', "Share today's air plan on WhatsApp");
-  waBtn.innerHTML = '💬 Share on WhatsApp';
+  waBtn.textContent = '💬 Share on WhatsApp';
 
   // Copy Plan button
   const copyBtn = el('button', 'btn btn-ghost btn-sm');
   copyBtn.type = 'button';
-  copyBtn.innerHTML = '📋 Copy plan';
+  copyBtn.textContent = '📋 Copy plan';
   copyBtn.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(shareText);
-      copyBtn.innerHTML = '✓ Copied!';
-      setTimeout(() => { copyBtn.innerHTML = '📋 Copy plan'; }, 2000);
+      copyBtn.textContent = '✓ Copied!';
+      setTimeout(() => { copyBtn.textContent = '📋 Copy plan'; }, 2000);
     } catch {
-      copyBtn.innerHTML = 'Failed to copy';
+      copyBtn.textContent = 'Failed to copy';
     }
   });
 
   // Print / PDF button
   const printBtn = el('button', 'btn btn-ghost btn-sm');
   printBtn.type = 'button';
-  printBtn.innerHTML = '🖨️ Print / PDF';
+  printBtn.textContent = '🖨️ Print / PDF';
   printBtn.addEventListener('click', () => window.print());
 
   // Audio Speech button
   const audioBtn = el('button', 'btn btn-ghost btn-sm');
   audioBtn.type = 'button';
-  audioBtn.innerHTML = '🔊 Listen to plan';
+  audioBtn.textContent = '🔊 Listen to plan';
   const speechText = `Today's air quality in ${d.location} is AQI ${air.aqi}, which is ${band.label}. ${advice.summary || ''} ${d.bestWindow ? `Your cleanest outdoor window is from ${hh(d.bestWindow.startHour)} to ${hh(d.bestWindow.endHour)}.` : ''}`;
   audioBtn.addEventListener('click', () => toggleBriefing(speechText, audioBtn));
 

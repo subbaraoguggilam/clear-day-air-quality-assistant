@@ -1,40 +1,109 @@
-// Open Meteo geocoding and air quality (no API key). Responses cached for ten minutes.
+/**
+ * Open-Meteo Air Quality and Geocoding Service Client.
+ * Queries free meteorological endpoints with timeouts, geo-bucketed in-memory caching,
+ * and robust input normalization.
+ */
+
 import { bestWindow, buildHourlyChart } from '../domain/aqi.js';
 import { AppError } from '../api/validate.js';
 
-const TTL = 10 * 60 * 1000;
-const cache = new Map();
-const r1 = (n) => (n == null ? null : Math.round(n * 10) / 10);
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+const REQUEST_TIMEOUT_MS = 8000;
 
-async function getJson(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`Upstream ${res.status}`);
-  return res.json();
+/**
+ * In-memory geo-bucketed response cache.
+ * @type {Map<string, { cachedAt: number, value: any }>}
+ */
+const airDataCache = new Map();
+
+/**
+ * Rounds a number to a single decimal place.
+ * @param {number | null | undefined} value
+ * @returns {number | null}
+ */
+const roundToOneDecimal = (value) => (value == null ? null : Math.round(value * 10) / 10);
+
+/**
+ * Performs a timed JSON fetch with upstream HTTP error handling.
+ * @param {string} url
+ * @returns {Promise<any>}
+ */
+async function fetchJsonWithTimeout(url) {
+  const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  if (!response.ok) {
+    throw new Error(`Upstream air service error: HTTP ${response.status}`);
+  }
+  return response.json();
 }
 
+/**
+ * Geocodes a city name into geographical coordinates and a standardized label.
+ * @param {string} city - Target city name
+ * @returns {Promise<{ lat: number, lon: number, label: string }>}
+ */
 export async function geocode(city) {
-  const d = await getJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
-  const r = d.results?.[0];
-  if (!r) throw new AppError(404, 'City not found. Check the spelling or share your location instead.');
-  return { lat: r.latitude, lon: r.longitude, label: `${r.name}, ${r.admin1 ?? r.country}` };
+  const encodedCity = encodeURIComponent(city.trim());
+  const endpoint = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCity}&count=1&language=en&format=json`;
+  const responseData = await fetchJsonWithTimeout(endpoint);
+
+  const matchedResult = responseData.results?.[0];
+  if (!matchedResult) {
+    throw new AppError(404, 'City not found. Check the spelling or share your location instead.');
+  }
+
+  const regionLabel = matchedResult.admin1 ?? matchedResult.country ?? '';
+  return {
+    lat: matchedResult.latitude,
+    lon: matchedResult.longitude,
+    label: regionLabel ? `${matchedResult.name}, ${regionLabel}` : matchedResult.name,
+  };
 }
 
+/**
+ * Fetches current air quality metrics and hourly forecast for given coordinates.
+ * Results are cached in memory for 10 minutes keyed by rounded coordinates.
+ * @param {{ lat: number, lon: number }} coordinates
+ * @returns {Promise<{
+ *   aqi: number,
+ *   pm25: number | null,
+ *   pm10: number | null,
+ *   no2: number | null,
+ *   o3: number | null,
+ *   bestWindow: { startHour: number, endHour: number, pm25: number } | null,
+ *   hourlyChart: Array<{ label: string, hour: number, pm25: number | null }>,
+ *   updated: string
+ * }>}
+ */
 export async function fetchAir({ lat, lon }) {
-  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL) return hit.value;
-  const d = await getJson(
+  const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const cachedEntry = airDataCache.get(cacheKey);
+
+  if (cachedEntry && Date.now() - cachedEntry.cachedAt < CACHE_TTL_MS) {
+    return cachedEntry.value;
+  }
+
+  const endpoint =
     `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}` +
-    '&current=us_aqi,pm2_5,pm10,nitrogen_dioxide,ozone&hourly=pm2_5&forecast_days=2&timezone=auto');
-  const c = d.current;
-  if (!c || !Number.isFinite(c.us_aqi)) throw new Error('No air data');
-  const value = {
-    aqi: Math.round(c.us_aqi),
-    pm25: r1(c.pm2_5), pm10: r1(c.pm10), no2: r1(c.nitrogen_dioxide), o3: r1(c.ozone),
-    bestWindow: bestWindow(d.hourly.time, d.hourly.pm2_5, c.time),
-    hourlyChart: buildHourlyChart(d.hourly.time, d.hourly.pm2_5, c.time),
-    updated: c.time,
+    '&current=us_aqi,pm2_5,pm10,nitrogen_dioxide,ozone&hourly=pm2_5&forecast_days=2&timezone=auto';
+
+  const apiData = await fetchJsonWithTimeout(endpoint);
+  const currentReading = apiData.current;
+
+  if (!currentReading || !Number.isFinite(currentReading.us_aqi)) {
+    throw new Error('No valid air quality telemetry returned from upstream.');
+  }
+
+  const formattedAirData = {
+    aqi: Math.round(currentReading.us_aqi),
+    pm25: roundToOneDecimal(currentReading.pm2_5),
+    pm10: roundToOneDecimal(currentReading.pm10),
+    no2: roundToOneDecimal(currentReading.nitrogen_dioxide),
+    o3: roundToOneDecimal(currentReading.ozone),
+    bestWindow: bestWindow(apiData.hourly.time, apiData.hourly.pm2_5, currentReading.time),
+    hourlyChart: buildHourlyChart(apiData.hourly.time, apiData.hourly.pm2_5, currentReading.time),
+    updated: currentReading.time,
   };
-  cache.set(key, { at: Date.now(), value });
-  return value;
+
+  airDataCache.set(cacheKey, { cachedAt: Date.now(), value: formattedAirData });
+  return formattedAirData;
 }
