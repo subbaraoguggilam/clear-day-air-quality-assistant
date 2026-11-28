@@ -31,6 +31,7 @@ describe('Express Server Routes and Security Headers', () => {
     const data = await res.json();
     assert.equal(data.status, 'ok');
     assert.equal(data.service, 'clear-day');
+    assert.equal(typeof data.aiConfigured, 'boolean');
     assert.equal(typeof data.uptimeSeconds, 'number');
     assert.ok(data.timestamp);
   });

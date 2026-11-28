@@ -151,6 +151,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'clear-day',
+    aiConfigured: Boolean(process.env.GEMINI_API_KEY),
     uptimeSeconds: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   });

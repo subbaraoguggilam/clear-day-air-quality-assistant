@@ -12,7 +12,7 @@
   <link rel="icon" href="/icon.svg">
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#22C55E">
+  <meta name="theme-color" content="#34D399">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
@@ -164,6 +164,13 @@
           <div class="field">
             <label class="title-4" for="city">City name</label>
             <input id="city" name="city" type="text" maxlength="60" autocomplete="address-level2" placeholder="e.g. Anantapur, Delhi, Mumbai" required>
+            <div class="chip-row" aria-label="Quick city presets">
+              <button type="button" class="chip" data-city="Anantapur">Anantapur</button>
+              <button type="button" class="chip" data-city="Delhi">Delhi</button>
+              <button type="button" class="chip" data-city="Mumbai">Mumbai</button>
+              <button type="button" class="chip" data-city="Bengaluru">Bengaluru</button>
+              <button type="button" class="chip" data-city="Kolkata">Kolkata</button>
+            </div>
             <button id="geo" type="button" class="btn btn-ghost btn-sm">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
               Use my location
@@ -195,9 +202,10 @@
                 <option value="wfh">🏠 Work from home</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field" id="distance-field">
               <label class="title-4" for="distanceKm">One-way distance (kilometers)</label>
               <input id="distanceKm" name="distanceKm" type="number" min="0" max="100" value="8" inputmode="decimal">
+              <p id="distance-hint" class="caption-2 muted field-hint"></p>
             </div>
           </div>
 
@@ -228,9 +236,15 @@
           </div>
           <form id="ask-form" class="card ask-card" hidden aria-label="Ask a question">
             <label class="title-4" for="question">Ask about today's air</label>
+            <div class="chip-row ask-chips" aria-label="Suggested questions">
+              <button type="button" class="chip" data-question="When should I open windows today?">When to open windows?</button>
+              <button type="button" class="chip" data-question="Which mask should we wear outdoors?">Which mask to wear?</button>
+              <button type="button" class="chip" data-question="How can I cut indoor smoke while cooking?">Cut indoor smoke?</button>
+              <button type="button" class="chip" data-question="Is outdoor exercise safe today?">Outdoor exercise safe?</button>
+            </div>
             <div class="ask-row">
               <input id="question" type="text" maxlength="300" placeholder="Is it safe for my child to play outside?" required>
-              <button type="submit" class="btn btn-ghost btn-sm">Ask</button>
+              <button id="ask-submit" type="submit" class="btn btn-ghost btn-sm">Ask</button>
             </div>
             <div id="answer" class="answer-box" aria-live="polite"></div>
           </form>

@@ -28,12 +28,13 @@ City / GPS + Profile
 
 | Decision | Detail |
 |---|---|
-| **Tiered Intelligence Architecture** | **Gemini (GenAI)** produces rich natural language. If GenAI is unavailable or fails safety filters, **SHAP Explainable ML Model** acts as the primary fallback, quantifying marginal risk contributions per feature before reverting to rule-based fallback. |
-| **Rules before the model** | AQI > 150 → no outdoor exercise for anyone. AQI > 300 → stay indoors. Sensitive households get mask and ventilation constraints injected into every prompt. |
-| **Validated output** | Gemini JSON is schema-checked and scanned for forbidden exertion words (jog, run, cycle, bike, sprint) when AQI > 150. Failure triggers one retry, then SHAP fallback. |
-| **SHAP Explainability** | Exact Shapley value computation calculates the marginal risk added by outdoor AQI, vulnerable family members, transit exposure, and indoor cooking fuels. |
-| **Numbers never from the model** | CO₂ saved, PM2.5 exposure reduction, and cigarette-equivalent values are computed in code and cited by text in the prompt. The model is instructed not to invent numbers. |
-| **Cleanest window** | We scan 24 hours of hourly PM2.5 forecasts (06:00–20:00) and find the lowest consecutive 2-hour average — visualised in the in-page SVG bar chart. |
+| **Tiered Intelligence Architecture** | **Gemini (GenAI)** produces rich, household-tailored routines and indoor air fixes. If GenAI is unavailable or fails safety filters, the **SHAP Explainable ML Model** acts as primary fallback with exact Shapley attribution before reverting to deterministic safety rules. |
+| **Rules before the model** | AQI > 150 → no outdoor exercise for anyone. AQI > 300 → stay indoors. Sensitive households get mask and ventilation constraints injected into every prompt, and Good/Moderate days (`AQI ≤ 100`) scale guidance smoothly without false stay-indoors warnings. |
+| **Validated output & guided retry** | Gemini JSON is schema-checked and scanned for forbidden exertion words (`jog`, `run`, `cycle`, `bike`, `sprint`) when AQI > 150. Validation failures feed the specific reason back into a guided retry before falling back to SHAP. |
+| **SHAP Explainability & Q&A** | Exact Shapley value computation calculates marginal risk from outdoor AQI, household vulnerability, transit exposure, and indoor cooking fuel—and powers topic-aware Q&A fallback when Gemini is offline. |
+| **Numbers never from the model** | CO₂ saved, PM2.5 exposure cut, health score, and cigarette-equivalent values are computed in code and passed in `COMPUTED_IMPACT`. The model is instructed never to invent numbers. |
+| **Cleanest window & safe framing** | We scan 24 hours of hourly PM2.5 forecasts (06:00–20:00) for the lowest consecutive 2-hour average, visualise it in an interactive SVG bar chart with hover tooltips, and automatically shift calendar reminders to tomorrow when the window has passed. |
+| **Intuitive Planner UX** | Quick-try city presets (`Anantapur`, `Delhi`, `Mumbai`, `Bengaluru`, `Kolkata`), smart `Work from home` commute-distance disabling, cooking-fuel context pills, and suggested Q&A chips make testing and daily use effortless. |
 | **Cigarette equivalent** | 22 µg/m³ daily mean PM2.5 ≈ 1 cigarette/day (Berkeley Air). Makes health cost tangible without being alarmist. |
 | **Transparency drawer** | A "Why this advice" card lists every rule triggered; an assumptions panel sits under the impact grid. |
 | **PWA & Offline Shell** | Web App Manifest and Service Worker enable home screen installation and offline browsing of safety guides and AQI tables. |
@@ -48,10 +49,23 @@ npm install
 cp .env.example .env     # add your GEMINI_API_KEY (free: https://aistudio.google.com/apikey)
 npm start                # → http://localhost:3000
 npm run check            # syntax check server and frontend scripts
-npm test                 # 45 unit & integration tests, zero network required
+npm test                 # 50 unit & integration tests, zero network required
 ```
 
-Without a Gemini key the app still returns a complete rule-based plan, clearly labelled as such.
+Without a Gemini key the app still returns a complete SHAP/rule-based plan, clearly labelled as such.
+
+## Deployment & Live Link Verification
+
+`render.yaml` is included for one-click deployment on [Render](https://render.com) (free Node web service with automatic `/api/health` checks):
+
+1. Push this repository to GitHub (`main` branch).
+2. In Render, choose **New → Blueprint**, connect `subbaraoguggilam/clear-day-air-quality-assistant`, and apply `render.yaml`.
+3. Set the secret environment variable `GEMINI_API_KEY` in the Render dashboard (optional: without it, Tier 2 SHAP + Tier 3 Rules run automatically).
+4. Verify the live deployment after deploy completes:
+   - `GET https://<your-live-url>/api/health` returns `{"status":"ok","service":"clear-day","aiConfigured":true,...}`.
+   - Open `https://<your-live-url>/`, tap a quick city chip (e.g., **Delhi** or **Anantapur**), and verify the live AQI card, 24h PM2.5 chart, low-emission routine, indoor fixes, and Q&A response.
+
+> **Live Demo URL:** _Add your deployed Render / Railway URL here after publishing (`https://<your-app>.onrender.com`)._
 
 ## Security
 
@@ -94,30 +108,31 @@ This is general guidance, not medical advice. Impact figures are estimates. Engl
 ## Project layout
 
 ```
+render.yaml            — One-click Render Blueprint deployment config (/api/health check)
 server.js              — Express server (rate limit, security headers, caching, /api/health, error handling)
 src/
   domain/
     aqi.js             — AQI classification, cleanest window, hourly chart data, cigarette eq.
-    rules.js           — Safety constraints, forbidden word filter, rule-based fallback advice
+    rules.js           — Safety constraints, forbidden word filter, tailored indoor hacks & swaps, rule fallback
     impact.js          — CO₂ savings, PM2.5 exposure cut, health score math
     shap.js            — SHAP Explainable ML Model (fallback intelligence & feature attribution)
     purifier.js        — CADR (Clean Air Delivery Rate) and DIY purifier sizing math
   services/
-    aqiClient.js       — Open Meteo geocoding + air quality client (cached)
-    llm.js             — Gemini prompt builder, output validation, retry, fallback
+    aqiClient.js       — Open Meteo geocoding + air quality client (cached, comma-city fallback)
+    llm.js             — Gemini prompt builder, output validation, guided retry, SHAP/rule fallback
   api/
-    validate.js        — Whitelist validation for all request fields
+    validate.js        — Whitelist validation & sanitization for all request fields
 public/
   index.html           — Semantic, accessible single-page app & PWA metadata
   styles.css           — Design system: tokens, AQI colours, print stylesheet, responsive layout
-  app.js               — Frontend logic: AQI hero, chart, CADR calculator, sharing, speech & calendar
+  app.js               — Frontend logic: city chips, AQI hero, SVG tooltips, CADR calculator, sharing, speech & calendar
   manifest.json        — PWA web app manifest
   sw.js                — Service Worker for offline static asset caching
   icon.svg             — Vector PWA application icon
   404.html             — Lightweight 404 page
 tests/
-  domain.test.js       — 26 domain unit tests (zero network, built-in Node test runner)
-  llm.test.js          — 5 mocked Gemini, retry, and SHAP fallback tests
+  domain.test.js       — 30 domain unit tests (zero network, built-in Node test runner)
+  llm.test.js          — 6 mocked Gemini, guided retry, and SHAP fallback tests
   server.test.js       — 5 Express route, validation, and security header tests
   validation.test.js   — 9 API validation & safety unit tests
 ```

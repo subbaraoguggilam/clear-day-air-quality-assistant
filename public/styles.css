@@ -320,6 +320,21 @@ select {
 .check-label { font: 600 13px/1.4 var(--font); }
 .error-field { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2) !important; }
 .submit-btn { margin-top: var(--s-150); width: 100%; height: 50px; font-size: 16px; }
+.field-hint { min-height: 0; }
+.field-disabled input { opacity: 0.48; cursor: not-allowed; }
+
+/* ── Preset & Suggestion Chips ───────────────────────────────── */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.chip {
+  appearance: none; -webkit-appearance: none;
+  background: var(--surface2); color: var(--muted);
+  border: 1px solid var(--line); border-radius: var(--r-pill);
+  padding: 5px 12px; font: 500 12px/1.3 var(--font);
+  cursor: pointer; transition: border-color 180ms var(--ease), color 180ms var(--ease), background 180ms var(--ease);
+}
+.chip:hover { border-color: var(--line2); color: var(--text); background: var(--surface-tonal); }
+.chip.active { border-color: var(--accent); color: var(--accent); background: rgba(52, 211, 153, 0.12); }
+.ask-chips { margin-bottom: 4px; }
 
 /* ── Empty state ─────────────────────────────────────────────── */
 .empty-state {
@@ -387,6 +402,22 @@ select {
   border: 1px solid var(--line); border-radius: var(--r-lg);
 }
 .chart-svg { display: block; width: 100%; min-width: 440px; height: auto; }
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+  margin-top: var(--s-75); font-size: 11px; color: var(--muted);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* Card headers & impact tags */
+.card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-100); }
+.card-pill {
+  font: 600 11px/1.2 var(--font); color: var(--accent);
+  background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.28);
+  padding: 4px 10px; border-radius: var(--r-pill);
+}
+.impact-tag { color: var(--accent); font-weight: 600; margin-right: 4px; }
+.answer-meta { margin-top: 8px; font-size: 11px; color: var(--muted2); }
 
 /* Cleanest window badge */
 .window-badge {

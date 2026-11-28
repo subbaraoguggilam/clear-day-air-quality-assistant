@@ -4,8 +4,8 @@
   "description": "Personalised smog-safe daily plan, indoor air hacks and low-emission routines.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#131209",
-  "theme_color": "#22C55E",
+  "background_color": "#0E1113",
+  "theme_color": "#34D399",
   "icons": [
     {
       "src": "/icon.svg",

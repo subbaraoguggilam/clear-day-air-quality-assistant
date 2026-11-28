@@ -43,11 +43,22 @@ async function fetchJsonWithTimeout(url) {
  * @returns {Promise<{ lat: number, lon: number, label: string }>}
  */
 export async function geocode(city) {
-  const encodedCity = encodeURIComponent(city.trim());
-  const endpoint = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCity}&count=1&language=en&format=json`;
-  const responseData = await fetchJsonWithTimeout(endpoint);
+  const trimmedCity = city.trim();
+  const queryCity = async (name) => {
+    const encoded = encodeURIComponent(name);
+    const endpoint = `https://geocoding-api.open-meteo.com/v1/search?name=${encoded}&count=1&language=en&format=json`;
+    const responseData = await fetchJsonWithTimeout(endpoint);
+    return responseData.results?.[0] ?? null;
+  };
 
-  const matchedResult = responseData.results?.[0];
+  let matchedResult = await queryCity(trimmedCity);
+  if (!matchedResult && trimmedCity.includes(',')) {
+    const shortName = trimmedCity.split(',')[0].trim();
+    if (shortName.length >= 2) {
+      matchedResult = await queryCity(shortName);
+    }
+  }
+
   if (!matchedResult) {
     throw new AppError(404, 'City not found. Check the spelling or share your location instead.');
   }
@@ -94,14 +105,16 @@ export async function fetchAir({ lat, lon }) {
     throw new Error('No valid air quality telemetry returned from upstream.');
   }
 
+  const hourlyTime = apiData.hourly?.time ?? [];
+  const hourlyPm25 = apiData.hourly?.pm2_5 ?? [];
   const formattedAirData = {
     aqi: Math.round(currentReading.us_aqi),
     pm25: roundToOneDecimal(currentReading.pm2_5),
     pm10: roundToOneDecimal(currentReading.pm10),
     no2: roundToOneDecimal(currentReading.nitrogen_dioxide),
     o3: roundToOneDecimal(currentReading.ozone),
-    bestWindow: bestWindow(apiData.hourly.time, apiData.hourly.pm2_5, currentReading.time),
-    hourlyChart: buildHourlyChart(apiData.hourly.time, apiData.hourly.pm2_5, currentReading.time),
+    bestWindow: bestWindow(hourlyTime, hourlyPm25, currentReading.time),
+    hourlyChart: buildHourlyChart(hourlyTime, hourlyPm25, currentReading.time),
     updated: currentReading.time,
   };
 

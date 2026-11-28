@@ -55,12 +55,15 @@ describe('LLM Service, Safety Retries, and SHAP Fallbacks', () => {
   });
 
   test('buildPrompt injects safety constraints and computed impact', () => {
-    const context = createTestContext(180);
+    const context = { ...createTestContext(180), trend: 'rising' };
     const prompt = buildPrompt(context, 'Build a plan.');
     assert.ok(prompt.includes('location: Delhi, India | AQI: 180'));
+    assert.ok(prompt.includes('NO2: 32 | O3: 24 | 6h_trend: rising'));
     assert.ok(prompt.includes('SAFETY_CONSTRAINTS:'));
     assert.ok(prompt.includes('No outdoor exercise'));
     assert.ok(prompt.includes('cleanest window today: 13:00 to 15:00'));
+    assert.ok(prompt.includes('cigarettes_per_day'));
+    assert.ok(prompt.includes('health_score'));
   });
 
   test('getAdvice returns Gemini output when response passes schema and safety checks', async () => {
@@ -127,5 +130,29 @@ describe('LLM Service, Safety Retries, and SHAP Fallbacks', () => {
     const fallbackResult = await answerQuestion(context, 'Can kids play outside?', { fetchImpl: failFetch });
     assert.equal(fallbackResult.source, 'shap');
     assert.ok(fallbackResult.answer.includes('SHAP Explainability Model'));
+    assert.ok(fallbackResult.answer.includes('13:00 to 15:00'));
+
+    const windowFallback = await answerQuestion(context, 'When should I open windows?', { fetchImpl: failFetch });
+    assert.equal(windowFallback.source, 'shap');
+    assert.ok(windowFallback.answer.includes('cleanest window'));
+  });
+
+  test('answerQuestion retries once when first Gemini answer breaks safety rules', async () => {
+    let calls = 0;
+    const retryFetch = async () => {
+      calls += 1;
+      const text =
+        calls === 1
+          ? JSON.stringify({ answer: 'Go jogging outside this morning.' })
+          : JSON.stringify({ answer: 'Avoid outdoor exercise today and keep play indoors.' });
+      return {
+        ok: true,
+        json: async () => ({ candidates: [{ content: { parts: [{ text }] } }] }),
+      };
+    };
+    const res = await answerQuestion(createTestContext(180), 'Can I exercise outside?', { fetchImpl: retryFetch });
+    assert.equal(calls, 2);
+    assert.equal(res.source, 'gemini');
+    assert.equal(res.answer, 'Avoid outdoor exercise today and keep play indoors.');
   });
 });

@@ -87,7 +87,7 @@ export function parseRequest(body, { needQuestion = false } = {}) {
       lon: requireBoundedNumber(body.lon, -180, 180, 'Longitude'),
     };
   } else {
-    const city = typeof body.city === 'string' ? body.city.trim() : '';
+    const city = typeof body.city === 'string' ? body.city.replace(/\s+/g, ' ').trim() : '';
     if (city.length < 2 || city.length > 60) {
       throw createValidationError('Enter a city name of 2 to 60 characters.');
     }
@@ -107,7 +107,10 @@ export function parseRequest(body, { needQuestion = false } = {}) {
 
   let question;
   if (needQuestion) {
-    question = typeof body.question === 'string' ? body.question.trim() : '';
+    question =
+      typeof body.question === 'string'
+        ? body.question.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim()
+        : '';
     if (!question || question.length > 300) {
       throw createValidationError('Ask a question of up to 300 characters.');
     }

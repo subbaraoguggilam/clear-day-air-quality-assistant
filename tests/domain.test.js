@@ -186,3 +186,60 @@ test('getDiyFilterGuide includes baseline purifier requirements', () => {
   assert.ok(guide.baseline.requiredCfm > 0);
   assert.ok(guide.tips.some((t) => t.includes('CFM')));
 });
+
+test('bestWindow skips non-finite PM2.5 entries safely', () => {
+  const times = Array.from({ length: 24 }, (_, i) => `2026-11-18T${String(i).padStart(2, '0')}:00`);
+  const pm = times.map((_, i) => (i === 10 ? Number.NaN : i === 14 || i === 15 ? 25 : 90));
+  assert.deepEqual(bestWindow(times, pm, '2026-11-18T08:00'), { startHour: 14, endHour: 16, pm25: 25 });
+});
+
+test('estimateImpact handles missing pm25 gracefully and preserves mask benefit', () => {
+  const missing = estimateImpact(base, null, null);
+  assert.equal(missing.healthScore, null);
+  assert.equal(missing.cigarettesPerDay, null);
+  assert.equal(missing.exposure.cutPct, 50);
+
+  const worseWindow = estimateImpact(base, 40, { startHour: 12, endHour: 14, pm25: 80 });
+  assert.equal(worseWindow.exposure.cutPct, 50);
+});
+
+test('fallbackAdvice supports server context shape, Good AQI, and all cooking fuels', () => {
+  const goodPlan = fallbackAdvice({
+    air: { aqi: 35 },
+    constraints: [],
+    bestWindow: { startHour: 9, endHour: 11, pm25: 8 },
+    impact: estimateImpact(base, 8, null),
+    profile: { ...base, commute: 'wfh', cooking: 'induction' },
+  });
+  assert.ok(goodPlan.summary.includes('35'));
+  assert.ok(goodPlan.routine[0].action.toLowerCase().includes('open windows'));
+  assert.equal(goodPlan.alternatives.length, 2);
+
+  for (const cooking of ['wood', 'lpg', 'induction']) {
+    const severePlan = fallbackAdvice({
+      aqi: 350,
+      constraints: buildConstraints(350, { ...base, cooking }),
+      bestWindow: null,
+      impact: estimateImpact(base, 250, null),
+      profile: { ...base, cooking },
+    });
+    assert.doesNotThrow(() => validateAdvice(severePlan, 350));
+  }
+});
+
+test('generateShapAdvice adapts to Good AQI and WFH profiles cleanly', () => {
+  const wfhProfile = { ...base, commute: 'wfh', cooking: 'wood' };
+  const goodCtx = {
+    label: 'Anantapur',
+    air: { aqi: 38, pm25: 9, pm10: 18, no2: 10, o3: 25 },
+    band: classifyAqi(38),
+    bestWindow: { startHour: 8, endHour: 10, pm25: 7 },
+    constraints: buildConstraints(38, wfhProfile),
+    profile: wfhProfile,
+    impact: estimateImpact(wfhProfile, 9, { startHour: 8, endHour: 10, pm25: 7 }),
+  };
+  const advice = generateShapAdvice(goodCtx);
+  assert.ok(advice.routine[0].action.toLowerCase().includes('normal morning'));
+  assert.equal(advice.alternatives.length, 2);
+  assert.doesNotThrow(() => validateAdvice(advice, 38));
+});

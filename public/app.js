@@ -29,16 +29,40 @@ const COMMUTE_LABEL = {
   two_wheeler: 'scooter or motorbike', car: 'car', bus: 'bus',
   metro: 'metro', walk_cycle: 'walking or cycling', wfh: 'working from home',
 };
+const COOKING_LABEL = {
+  lpg: 'LPG / piped gas', wood: 'wood or biomass', induction: 'induction / electric',
+};
 
 // ── Form refs ────────────────────────────────────────────────
-const form      = $('#plan-form');
-const result    = $('#result');
-const askForm   = $('#ask-form');
-const answer    = $('#answer');
-const cityInput = $('#city');
-const geoStatus = $('#geo-status');
+const form          = $('#plan-form');
+const result        = $('#result');
+const askForm       = $('#ask-form');
+const answer        = $('#answer');
+const cityInput     = $('#city');
+const geoStatus     = $('#geo-status');
+const commuteSelect = $('#commute');
+const distanceInput = $('#distanceKm');
+const distanceField = $('#distance-field');
+const distanceHint  = $('#distance-hint');
+const cityChips     = document.querySelectorAll('[data-city]');
 let coords   = null;
 let lastBody = null;
+
+function syncCommuteDistance() {
+  const isWfh = commuteSelect.value === 'wfh';
+  distanceInput.disabled = isWfh;
+  distanceField?.classList.toggle('field-disabled', isWfh);
+  if (distanceHint) {
+    distanceHint.textContent = isWfh ? 'Not needed when working from home.' : '';
+  }
+}
+
+function syncCityChips() {
+  const current = cityInput.value.trim().toLowerCase();
+  cityChips.forEach((chip) => {
+    chip.classList.toggle('active', !coords && chip.dataset.city.toLowerCase() === current);
+  });
+}
 
 // ── Profile persistence (localStorage only) ──────────────────
 try {
@@ -46,10 +70,24 @@ try {
   for (const [k, v] of Object.entries(saved)) {
     const f = form.elements[k];
     if (!f) continue;
-    if (f.type === 'checkbox') f.checked = true;
+    if (f.type === 'checkbox') f.checked = Boolean(v);
     else f.value = v;
   }
 } catch { /* storage unavailable */ }
+syncCommuteDistance();
+syncCityChips();
+
+commuteSelect.addEventListener('change', syncCommuteDistance);
+cityChips.forEach((chip) => {
+  chip.addEventListener('click', () => {
+    coords = null;
+    cityInput.value = chip.dataset.city;
+    cityInput.required = true;
+    cityInput.classList.remove('error-field');
+    geoStatus.textContent = '';
+    syncCityChips();
+  });
+});
 
 // ── Read form into request body ───────────────────────────────
 function readBody() {
@@ -103,40 +141,47 @@ cityInput.addEventListener('input', () => {
   coords = null;
   cityInput.required = true;
   cityInput.classList.remove('error-field');
+  syncCityChips();
 });
 
 // ── Feature Helpers: Calendar, Purifier, Share & Speech ───────
 /**
  * Computes required Clean Air Delivery Rate (CADR) and DIY filter setup for a room.
+ * Matches server-side EPA/ASHRAE bounds in src/domain/purifier.js.
  * @param {number} sqFt - Room floor area in square feet
  * @param {number} [height=9] - Ceiling height in feet
  * @param {number} [ach=4.5] - Target Air Changes per Hour
  * @returns {{ volume: number, cfm: number, m3h: number, time: number, rec: string }}
  */
 function calcPurifier(sqFt, height = 9, ach = 4.5) {
-  const volume = sqFt * height;
-  const cfm = Math.round((volume * ach) / 60);
+  const boundedArea = Math.max(20, Math.min(2000, Number(sqFt) || 150));
+  const boundedHeight = Math.max(7, Math.min(16, Number(height) || 9));
+  const boundedAch = Math.max(2, Math.min(10, Number(ach) || 4.5));
+  const volume = Math.round(boundedArea * boundedHeight);
+  const cfm = Math.round((volume * boundedAch) / 60);
   const m3h = Math.round(cfm * 1.699);
-  const time = Math.round((Math.log(5) / ach) * 60);
+  const time = Math.round((Math.log(5) / boundedAch) * 60);
   let rec = '';
   if (cfm <= 140) {
-    rec = '1-Filter Mini Fan Box (~₹1,200 / $15) — ideal for small bedrooms.';
+    rec = 'Single-Filter Mini Fan Box (₹1,000–₹1,500 / $12–$18) — ideal for small bedrooms.';
   } else if (cfm <= 280) {
-    rec = '2-Filter Wedge Corsi-Rosenthal Box (~₹2,000 / $25) — ideal for bedrooms & studies.';
+    rec = '2-Filter Wedge Corsi-Rosenthal Box (₹1,800–₹2,500 / $22–$30) — ideal for bedrooms & studies.';
   } else {
-    rec = '4-Filter Corsi-Rosenthal Cube (~₹3,200 / $38) — high airflow for living spaces.';
+    rec = 'Full 4-Filter Corsi-Rosenthal Cube (₹2,800–₹3,800 / $34–$45) — high airflow for living spaces.';
   }
   return { volume, cfm, m3h, time, rec };
 }
 
 /**
- * Formats today's local hour into an iCalendar/Google Calendar UTC timestamp.
+ * Formats an upcoming local hour into an iCalendar/Google Calendar UTC timestamp,
+ * rolling to tomorrow when the target hour has already passed today.
  * @param {number} hour - Hour of day (0-23)
  * @returns {string}
  */
 function formatCalDate(hour) {
   const now = new Date();
-  const dateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+  const dayOffset = hour < now.getHours() ? 1 : 0;
+  const dateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, hour, 0, 0);
   return dateObj.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 }
 
@@ -296,6 +341,9 @@ function buildChart(data, bestStart) {
       bar.setAttribute('width', Math.max(colW - 2, 2)); bar.setAttribute('height', barH);
       bar.setAttribute('fill', isWin ? '#22C55E' : fillColor);
       bar.setAttribute('rx', '2');
+      const tip = document.createElementNS(ns, 'title');
+      tip.textContent = `${d.label}: ${d.pm25} µg/m³${isWin ? ' (Cleanest window)' : ''}`;
+      bar.appendChild(tip);
       svg.appendChild(bar);
     }
 
@@ -378,12 +426,18 @@ function render(d) {
 
   aqiCard.append(locationEl, aqiNumEl, bandPill, metaGrid, unitLegend);
 
-  // Best window badge & calendar actions
+  // Best window badge & calendar actions (framed safely for severe AQI)
   if (d.bestWindow) {
+    const windowPrefix =
+      air.aqi > 300
+        ? '🪟 Lowest-pollution window (stay indoors; brief check only): '
+        : air.aqi > 200
+          ? '😷 Briefest exposure window (essential trips only, N95): '
+          : '🌿 Cleanest outdoor window: ';
     const wb = el(
       'div',
       'window-badge',
-      txt('🌿 Cleanest outdoor window: '),
+      txt(windowPrefix),
       el('strong', null, win),
       txt(` (PM2.5 ${d.bestWindow.pm25} µg/m³)`)
     );
@@ -423,10 +477,24 @@ function render(d) {
     const svg = buildChart(hourlyChart, d.bestWindow?.startHour ?? null);
     if (svg) {
       const chartLbl = el('p', 'caption-2 muted');
-      chartLbl.textContent = '24-hour fine dust (PM2.5) forecast. Green bars = cleanest window. WHO safe limit: 15 µg/m³.';
-      chartWrap.append(svg);
+      chartLbl.textContent = '24-hour fine dust (PM2.5) forecast. Hover bars for hourly readings.';
+      const legend = el(
+        'div',
+        'chart-legend',
+        el('span', 'legend-item', Object.assign(el('span', 'legend-swatch'), { style: 'background:#22C55E' }), txt('Cleanest window / ≤12 µg/m³')),
+        el('span', 'legend-item', Object.assign(el('span', 'legend-swatch'), { style: 'background:#EAB308' }), txt('13–35 µg/m³')),
+        el('span', 'legend-item', Object.assign(el('span', 'legend-swatch'), { style: 'background:#F97316' }), txt('36–55 µg/m³')),
+        el('span', 'legend-item', Object.assign(el('span', 'legend-swatch'), { style: 'background:#EF4444' }), txt('>55 µg/m³'))
+      );
+      chartWrap.append(svg, legend);
       aqiCard.append(chartWrap, chartLbl);
     }
+  }
+
+  if (air.updated) {
+    const upd = el('p', 'caption-2 muted');
+    upd.textContent = `Live reading timestamp: ${air.updated.replace('T', ' ')}`;
+    aqiCard.append(upd);
   }
 
   nodes.push(aqiCard);
@@ -502,7 +570,11 @@ function render(d) {
   // ── 3. Daily routine ───────────────────────────────────────
   const routineCard = el('section', 'card');
   routineCard.setAttribute('aria-label', 'Your daily routine plan');
-  const routH = el('h3', 'heading-6'); routH.textContent = 'Your plan for today';
+  const routHead = el('div', 'card-head');
+  const routH = el('h3', 'heading-6'); routH.textContent = 'Your low-emission routine';
+  const routPill = el('span', 'card-pill');
+  routPill.textContent = d.bestWindow ? `Timed for ${win}` : 'Daily schedule';
+  routHead.append(routH, routPill);
   const sumEl = el('p', 'body-3'); sumEl.textContent = advice.summary;
   const routList = el('ul', 'list');
   routList.setAttribute('aria-label', 'Daily routine steps');
@@ -510,17 +582,27 @@ function render(d) {
     const li = el('li');
     const timeTag = el('span', 'list-time'); timeTag.textContent = r.time;
     const act = el('p', 'body-3');  act.textContent = r.action;
-    const why = el('p', 'body-2 muted'); why.textContent = r.why;
+    const why = el('p', 'body-2 muted');
+    why.append(el('span', 'impact-tag', txt('Why: ')), txt(r.why));
     li.append(timeTag, act, why);
     routList.append(li);
   });
-  routineCard.append(routH, sumEl, routList);
+  routineCard.append(routHead, sumEl, routList);
   nodes.push(routineCard);
 
   // ── 4. Indoor air hacks ────────────────────────────────────
   const hackCard = el('section', 'card');
   hackCard.setAttribute('aria-label', 'Indoor air quality hacks');
+  const hackHead = el('div', 'card-head');
   const hackH = el('h3', 'heading-6'); hackH.textContent = 'Indoor air fixes';
+  const cookFuel = lastBody?.profile?.cooking;
+  if (cookFuel && COOKING_LABEL[cookFuel]) {
+    const cookPill = el('span', 'card-pill');
+    cookPill.textContent = `Tailored for ${COOKING_LABEL[cookFuel]}`;
+    hackHead.append(hackH, cookPill);
+  } else {
+    hackHead.append(hackH);
+  }
   const hackList = el('ul', 'hack-list');
   advice.indoor_hacks.forEach((h, i) => {
     const li   = el('li', 'hack-item');
@@ -528,18 +610,28 @@ function render(d) {
     num.setAttribute('aria-hidden', 'true');
     const body = el('div', 'hack-body');
     const tip  = el('p', 'body-3');     tip.textContent = h.tip;
-    const imp  = el('p', 'body-2 muted'); imp.textContent = h.impact;
+    const imp  = el('p', 'body-2 muted');
+    imp.append(el('span', 'impact-tag', txt('Impact: ')), txt(h.impact));
     body.append(tip, imp);
     li.append(num, body);
     hackList.append(li);
   });
-  hackCard.append(hackH, hackList);
+  hackCard.append(hackHead, hackList);
   nodes.push(hackCard);
 
   // ── 5. Sustainable alternatives ────────────────────────────
   const altCard = el('section', 'card');
   altCard.setAttribute('aria-label', 'Sustainable alternatives');
-  const altH = el('h3', 'heading-6'); altH.textContent = 'Sustainable swaps';
+  const altHead = el('div', 'card-head');
+  const altH = el('h3', 'heading-6'); altH.textContent = 'Low-emission swaps';
+  const commuteMode = lastBody?.profile?.commute;
+  if (commuteMode && COMMUTE_LABEL[commuteMode]) {
+    const commPill = el('span', 'card-pill');
+    commPill.textContent = `Current: ${COMMUTE_LABEL[commuteMode]}`;
+    altHead.append(altH, commPill);
+  } else {
+    altHead.append(altH);
+  }
   const altList = el('ul', 'hack-list');
   advice.alternatives.forEach((a, i) => {
     const li   = el('li', 'hack-item');
@@ -547,12 +639,13 @@ function render(d) {
     num.setAttribute('aria-hidden', 'true');
     const body = el('div', 'hack-body');
     const swap = el('p', 'body-3');       swap.textContent = a.swap;
-    const ben  = el('p', 'body-2 muted'); ben.textContent  = a.benefit;
+    const ben  = el('p', 'body-2 muted');
+    ben.append(el('span', 'impact-tag', txt('Benefit: ')), txt(a.benefit));
     body.append(swap, ben);
     li.append(num, body);
     altList.append(li);
   });
-  altCard.append(altH, altList);
+  altCard.append(altHead, altList);
   nodes.push(altCard);
 
   // ── 6. Impact numbers ──────────────────────────────────────
@@ -694,10 +787,10 @@ function render(d) {
 
     const outBox = el('div', 'cadr-output');
     function updateCadr() {
-      const sqFt = Math.max(30, Number(areaInput.value) || 150);
+      const sqFt = Math.max(20, Math.min(2000, Number(areaInput.value) || 150));
       const sqMeters = Math.round(sqFt * 0.0929 * 10) / 10;
-      const ht = Math.max(7, Number(heightInput.value) || 9);
-      const ach = Number(achInput.value) || 4.5;
+      const ht = Math.max(7, Math.min(16, Number(heightInput.value) || 9));
+      const ach = Math.max(2, Math.min(10, Number(achInput.value) || 4.5));
       const res = calcPurifier(sqFt, ht, ach);
       outBox.replaceChildren(
         el('div', 'cadr-stat', el('span', null, 'Room Size:'), el('strong', null, `${sqFt} sq ft (${sqMeters} m²)`)),
@@ -785,8 +878,7 @@ function showSkeleton() {
 }
 
 // ── Form submit ───────────────────────────────────────────────
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
+async function submitPlan() {
   if (!coords && cityInput.value.trim().length < 2) {
     cityInput.classList.add('error-field');
     cityInput.focus();
@@ -808,35 +900,65 @@ form.addEventListener('submit', async (e) => {
     errCard.setAttribute('role', 'alert');
     const h = el('h3', 'heading-6'); h.textContent = 'Could not build your plan';
     const p = el('p',  'body-3 muted'); p.textContent = err.message;
-    errCard.append(h, p);
+    const retryBtn = el('button', 'btn btn-ghost btn-sm');
+    retryBtn.type = 'button';
+    retryBtn.textContent = 'Try again';
+    retryBtn.style.width = 'fit-content';
+    retryBtn.addEventListener('click', submitPlan);
+    errCard.append(h, p, retryBtn);
     result.replaceChildren(errCard);
   } finally {
     btn.removeAttribute('disabled');
     btn.removeAttribute('aria-disabled');
     result.removeAttribute('aria-busy');
   }
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  submitPlan();
 });
 
 // ── Ask form ──────────────────────────────────────────────────
-askForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const q = $('#question').value.trim();
+async function submitQuestion(q) {
   if (!q || !lastBody) return;
+  const askBtn = $('#ask-submit');
+  askBtn?.setAttribute('disabled', '');
   answer.replaceChildren(el('p', 'body-2 muted', txt('Thinking…')));
   try {
     const res = await post('/api/ask', { ...lastBody, question: q });
     const p = el('p', 'body-3'); p.textContent = res.answer;
-    answer.replaceChildren(p);
+    const meta = el('p', 'answer-meta');
+    meta.textContent =
+      res.source === 'gemini'
+        ? 'Answered by Gemini grounded in your live AQI & safety rules.'
+        : 'Answered by SHAP Explainability Model + Safety Rules.';
+    answer.replaceChildren(p, meta);
   } catch (err) {
     const p = el('p', 'body-2'); p.textContent = err.message;
     answer.replaceChildren(p);
+  } finally {
+    askBtn?.removeAttribute('disabled');
   }
+}
+
+askForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  submitQuestion($('#question').value.trim());
+});
+
+document.querySelectorAll('[data-question]').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    const q = chip.dataset.question;
+    $('#question').value = q;
+    submitQuestion(q);
+  });
 });
 
 // ── Scroll reveal ─────────────────────────────────────────────
 const rv = new IntersectionObserver(
   (es) => es.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); rv.unobserve(en.target); } }),
-  { threshold: 0.12 }
+  { threshold: 0.05 }
 );
 document.querySelectorAll('.rv').forEach((n) => rv.observe(n));
 

@@ -50,10 +50,12 @@ export function bestWindow(timeSeriesIso, pm25Series, currentIso, { from = 6, to
 
   for (let index = startIndex; index < Math.min(timeSeriesIso.length - 1, startIndex + 24); index++) {
     const hour = Number(timeSeriesIso[index].slice(11, 13));
-    if (hour < from || hour + 2 > to || pm25Series[index] == null || pm25Series[index + 1] == null) {
+    const currentPm = pm25Series[index];
+    const nextPm = pm25Series[index + 1];
+    if (hour < from || hour + 2 > to || !Number.isFinite(currentPm) || !Number.isFinite(nextPm)) {
       continue;
     }
-    const averagePm25 = (pm25Series[index] + pm25Series[index + 1]) / 2;
+    const averagePm25 = (currentPm + nextPm) / 2;
     if (!optimalWindow || averagePm25 < optimalWindow.pm25) {
       optimalWindow = {
         startHour: hour,

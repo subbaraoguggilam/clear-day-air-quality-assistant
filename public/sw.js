@@ -1,5 +1,5 @@
 // Clear Day Service Worker for offline shell support
-const CACHE_NAME = 'clear-day-v1';
+const CACHE_NAME = 'clear-day-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

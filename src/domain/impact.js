@@ -73,21 +73,29 @@ export function estimateImpact(profile, pm25, bestWindow) {
     };
   }
 
+  const hasPm25 = Number.isFinite(pm25) && pm25 >= 0;
   const dailyOutdoorHours = profile.commute === 'wfh' ? 0.5 : 1.5;
-  const baselineInhaledExposure = pm25 * dailyOutdoorHours;
-  const targetWindowPm25 = bestWindow ? bestWindow.pm25 : pm25;
+  const baselineInhaledExposure = hasPm25 ? pm25 * dailyOutdoorHours : 0;
+  const targetWindowPm25 =
+    hasPm25 && bestWindow && Number.isFinite(bestWindow.pm25)
+      ? Math.min(pm25, bestWindow.pm25)
+      : hasPm25
+        ? pm25
+        : 0;
   const mitigatedInhaledExposure = targetWindowPm25 * dailyOutdoorHours * MASK_PENETRATION_FACTOR;
 
   const exposureCutPercentage =
     baselineInhaledExposure > 0
       ? Math.min(100, Math.max(0, Math.round((1 - mitigatedInhaledExposure / baselineInhaledExposure) * 100)))
-      : 0;
+      : hasPm25
+        ? 0
+        : Math.round((1 - MASK_PENETRATION_FACTOR) * 100);
 
   // Cigarette equivalent calculated via verified Berkeley Air ratio
-  const cigarettesPerDay = cigaretteEquivalent(pm25);
+  const cigarettesPerDay = hasPm25 ? cigaretteEquivalent(pm25) : null;
 
   // Health score: 100 is pristine air, scaling inversely with PM2.5, clamped between 0 and 100
-  const healthScore = Math.max(0, Math.min(100, Math.round(100 - pm25 * 0.5)));
+  const healthScore = hasPm25 ? Math.max(0, Math.min(100, Math.round(100 - pm25 * 0.5))) : null;
 
   return {
     co2: co2Savings,
