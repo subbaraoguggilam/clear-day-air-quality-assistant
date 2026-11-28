@@ -65,7 +65,7 @@ Without a Gemini key the app still returns a complete SHAP/rule-based plan, clea
    - `GET https://<your-live-url>/api/health` returns `{"status":"ok","service":"clear-day","aiConfigured":true,...}`.
    - Open `https://<your-live-url>/`, tap a quick city chip (e.g., **Delhi** or **Anantapur**), and verify the live AQI card, 24h PM2.5 chart, low-emission routine, indoor fixes, and Q&A response.
 
-> **Live Demo URL:** _Add your deployed Render / Railway URL here after publishing (`https://<your-app>.onrender.com`)._
+> **Live Demo URL:** [https://clear-day-air-quality-assistant.onrender.com](https://clear-day-air-quality-assistant.onrender.com)
 
 ## Security
 
